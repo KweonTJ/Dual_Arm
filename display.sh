@@ -15,7 +15,7 @@ for arg in "$@"; do
         '--preview-only: update files without starting ROS nodes or GUI.' \
         'RViz: Move Camera = left drag rotate, wheel zoom, Shift+left drag pan.' \
         'Focus Camera: click a part to set the rotation centre, then zoom.' \
-        'Example: ./display.sh mount_spacing:=0.30 mount_height:=0.45'
+        'Example: ./display.sh mount_height:=0.45'
       exit 0 ;;
     *)
       launch_args+=("$arg")

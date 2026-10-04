@@ -188,6 +188,10 @@ def curved_toe(part, drop):
 
 def main():
     OUT.mkdir(exist_ok=True)
+    pipe = PARTS['aluminum_crossbar']
+    # Outer envelope only: no wall thickness or mounting holes were provided.
+    save('aluminum_crossbar', [box(tuple(pipe[key]/1000 for key in
+                                       ['depth_mm', 'length_mm', 'height_mm']))])
     case = [plate(rounded(.030, -.038, .012, .004), .035)]
     # Ribbed case edges and mounting flanges remain within the 40 x 32 x 50 envelope.
     for y in [-.014, .014]:

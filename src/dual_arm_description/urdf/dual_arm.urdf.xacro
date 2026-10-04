@@ -2,7 +2,14 @@
 <robot name="bioloid_dual_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:arg name="dimensions_file" default="$(find dual_arm_description)/config/dimensions.yaml"/>
   <xacro:property name="d" value="${xacro.load_yaml('$(arg dimensions_file)')}"/>
-  <xacro:arg name="mount_spacing" default="${d['mount_spacing']}"/>
+  <xacro:property name="joint_limits" value="${xacro.load_yaml('$(find dual_arm_description)/config/joint_limits.yaml')['joint_limits']}"/>
+  <xacro:property name="parts" value="${xacro.load_yaml('$(find dual_arm_description)/config/parts.yaml')}"/>
+  <xacro:property name="crossbar" value="${parts['aluminum_crossbar']}"/>
+  <!-- User dimensions are mm; URDF geometry is expressed in metres. -->
+  <xacro:property name="crossbar_length" value="${crossbar['length_mm']/1000.0}"/>
+  <xacro:property name="crossbar_depth" value="${crossbar['depth_mm']/1000.0}"/>
+  <xacro:property name="crossbar_height" value="${crossbar['height_mm']/1000.0}"/>
+  <xacro:arg name="mount_spacing" default="${d.get('mount_spacing', crossbar_length-0.040)}"/>
   <xacro:arg name="mount_height" default="${d['mount_height']}"/>
   <xacro:property name="mount_spacing" value="$(arg mount_spacing)"/>
   <xacro:property name="mount_height" value="$(arg mount_height)"/>
@@ -10,8 +17,20 @@
   <xacro:property name="hand_mount_x" value="${d.get('hand_mount_x', 0.0)}"/>
   <xacro:include filename="components.xacro"/>
   <xacro:include filename="arm.xacro"/>
-  <!-- Virtual assembly datum only: no fabricated torso/stand geometry. -->
+  <!-- Keep the floor datum massless; the physical crossbar supports both arms. -->
   <link name="base_link"/>
+  <joint name="crossbar_mount_joint" type="fixed">
+    <parent link="base_link"/><child link="crossbar_link"/>
+    <!-- Shoulder case bottom is 38 mm below its shaft in the current mesh. -->
+    <origin xyz="0 0 ${mount_height-0.038-crossbar_height/2}"/>
+  </joint>
+  <link name="crossbar_link">
+    <xacro:mesh_visual mesh="aluminum_crossbar" material="servo_black"/>
+    <xacro:box_collision size="${crossbar_depth} ${crossbar_length} ${crossbar_height}"/>
+    <!-- Wall thickness is unspecified: uniform outer-box inertia approximation. -->
+    <xacro:box_inertia mass="${crossbar['mass_kg']}" x="${crossbar_depth}"
+                       y="${crossbar_length}" z="${crossbar_height}"/>
+  </link>
   <xacro:arm prefix="left" side="1"/>
   <xacro:arm prefix="right" side="-1"/>
 </robot>

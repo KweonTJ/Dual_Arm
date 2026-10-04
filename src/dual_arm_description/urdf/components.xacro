@@ -39,11 +39,13 @@
     <xacro:mesh_visual mesh="ax12a_label" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
     <xacro:mesh_visual mesh="ax12a_lettering" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
   </xacro:macro>
-  <xacro:macro name="hinge" params="name parent child xyz axis lower upper">
+  <xacro:macro name="hinge" params="name parent child xyz axis">
+    <xacro:property name="limits" value="${joint_limits[name]}"/>
     <joint name="${name}" type="revolute">
       <parent link="${parent}"/><child link="${child}"/>
       <origin xyz="${xyz}"/><axis xyz="${axis}"/>
-      <limit lower="${lower}" upper="${upper}" effort="${d['arm_effort']}" velocity="${d['arm_velocity']}"/>
+      <limit lower="${limits['min_position_deg']*pi/180}" upper="${limits['max_position_deg']*pi/180}"
+             effort="${limits['max_effort_nm']}" velocity="${limits['max_velocity_deg_s']*pi/180}"/>
       <dynamics damping="0.02" friction="0.01"/>
     </joint>
   </xacro:macro>

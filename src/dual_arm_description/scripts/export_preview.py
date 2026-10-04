@@ -73,7 +73,8 @@ def load_model(path):
              'matrix':origin(joint).tolist()}
         if j['type'] != 'fixed':
             j.update(axis=numbers(joint.find('axis').get('xyz')).tolist(),
-                     lower=float(joint.find('limit').get('lower')), upper=float(joint.find('limit').get('upper')))
+                     lower=float(joint.find('limit').get('lower')), upper=float(joint.find('limit').get('upper')),
+                     velocity=float(joint.find('limit').get('velocity')))
         model['joints'].append(j)
     return model
 
@@ -140,7 +141,9 @@ def render(model, output, revision, motor_zero):
     colors = np.clip(colors*shade[:,None]+.04, 0, 1)
     fig = plt.figure(figsize=(15,9), facecolor='#edf0f4')
     fig.text(.045,.94,'DUAL ARM  /  AX-12A',fontsize=25,weight='bold',color='#1f2c3b')
-    fig.text(.045,.902,'FP04 drawing dimensions  |  F2 + F4 arm frames  |  F5 palm  |  F4 / F2 + F11 fingers',fontsize=12,color='#586879')
+    pipe_size = np.ptp(np.array(model['meshes']['aluminum_crossbar.stl']).reshape(-1,3), axis=0)*1000
+    mount_spacing = abs(frames['left_mount_link'][1,3]-frames['right_mount_link'][1,3])*1000
+    fig.text(.045,.902,f'Aluminum crossbar: {pipe_size[1]:g} x {pipe_size[0]:g} x {pipe_size[2]:g} mm  |  Shoulder centres: {mount_spacing:g} mm  |  FP04 arm frames',fontsize=12,color='#586879')
     for i, (azim,elev,title) in enumerate([(0,0,'FRONT'),(32,19,'PERSPECTIVE')]):
         ax = fig.add_axes([.025+i*.49,.10,.47,.75],projection='3d',facecolor='#edf0f4')
         front_faces, front_colors = visible_faces(faces, colors, azim, elev)
@@ -153,7 +156,7 @@ def render(model, output, revision, motor_zero):
         ax.set_box_aspect(tuple(span)); ax.set_axis_off()
         ax.text2D(.07,.96,title,transform=ax.transAxes,fontsize=11,color='#607386',weight='bold')
     fig.text(.045,.076,f'Shoulder to elbow: {arm_length:g} mm  |  Inner finger: {finger_lengths[0]:g} mm  |  Outer finger: {finger_lengths[1]:g} mm',fontsize=12,color='#24354a')
-    fig.text(.045,.048,f'12 AX-12A  /  motors: black  /  frames: gray  /  URDF neutral: 0 rad = motor zero: {motor_zero:g} deg',fontsize=10,color='#687789')
+    fig.text(.045,.048,f'12 AX-12A  /  motors + pipe: black  /  brackets: gray  /  URDF neutral: 0 rad = motor zero: {motor_zero:g} deg',fontsize=10,color='#687789')
     fig.text(.045,.021,'Model: '+revision+'  |  Updated: '+datetime.now().astimezone().isoformat(timespec='seconds'),fontsize=9,color='#687789')
     fig.savefig(output,dpi=150,facecolor=fig.get_facecolor())
     plt.close(fig)

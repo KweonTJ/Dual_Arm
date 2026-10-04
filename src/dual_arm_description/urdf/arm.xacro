@@ -3,8 +3,8 @@
   <!-- Axis signs remain provisional; URDF q=0 corresponds to motor zero 180 deg. -->
   <xacro:macro name="arm" params="prefix side">
     <joint name="${prefix}_mount_joint" type="fixed">
-      <parent link="base_link"/><child link="${prefix}_mount_link"/>
-      <origin xyz="0 ${side*mount_spacing/2} ${mount_height}"/>
+      <parent link="crossbar_link"/><child link="${prefix}_mount_link"/>
+      <origin xyz="0 ${side*mount_spacing/2} ${crossbar_height/2+0.038}"/>
     </joint>
     <link name="${prefix}_mount_link">
       <xacro:servo rpy="0 0 ${pi/2}"/>
@@ -12,8 +12,7 @@
       <xacro:box_inertia mass="${d['servo_mass']}" x="0.032" y="0.040" z="0.050" xyz="0 0 -0.013"/>
     </link>
     <xacro:hinge name="${prefix}_shoulder_pitch_joint" parent="${prefix}_mount_link"
-                 child="${prefix}_shoulder_link" xyz="0 ${side*0.022} 0" axis="0 -1 0"
-                 lower="${-pi/2}" upper="${pi/2}"/>
+                 child="${prefix}_shoulder_link" xyz="0 ${side*0.022} 0" axis="0 -1 0"/>
     <link name="${prefix}_shoulder_link">
       <!-- The second motor's long case points inward to the first motor.
            Rotate the housing about its shaft; the output fork still points down. -->
@@ -27,8 +26,7 @@
                              mesh="shoulder_adapter" rpy="0 0 ${0 if side == 1 else pi}"
                              scale="1 ${(d['shoulder_outboard']-0.038)/0.002} 1"/>
     <xacro:hinge name="${prefix}_shoulder_roll_joint" parent="${prefix}_shoulder_link"
-                 child="${prefix}_upper_arm_link" xyz="0 ${side*d['shoulder_outboard']} 0" axis="${side} 0 0"
-                 lower="${-pi/3}" upper="${pi/2}"/>
+                 child="${prefix}_upper_arm_link" xyz="0 ${side*d['shoulder_outboard']} 0" axis="${side} 0 0"/>
     <link name="${prefix}_upper_arm_link">
       <xacro:mesh_visual mesh="shoulder_fork" material="frame_grey"/>
       <xacro:mesh_visual mesh="horn_screws" material="frame_grey"/>
@@ -47,8 +45,7 @@
     </link>
     <!-- Elbow casing is downstream; upper fork holds its output horn. -->
     <xacro:hinge name="${prefix}_elbow_pitch_joint" parent="${prefix}_upper_arm_link"
-                 child="${prefix}_forearm_link" xyz="0 0 ${-d['upper_arm_length']}" axis="0 -1 0"
-                 lower="${-pi/2}" upper="${pi/2}"/>
+                 child="${prefix}_forearm_link" xyz="0 0 ${-d['upper_arm_length']}" axis="0 -1 0"/>
     <link name="${prefix}_forearm_link">
       <xacro:servo rpy="0 0 ${pi/2}"/>
       <!-- Corrected front/back direction: the two-motor hand is ahead of the wrist housing.
@@ -65,8 +62,7 @@
                              mesh="wrist_adapter" xyz="0 0 -0.033"
                              scale="1 1 ${(d['wrist_drop']-0.033)/0.040}"/>
     <xacro:hinge name="${prefix}_wrist_roll_joint" parent="${prefix}_forearm_link"
-                 child="${prefix}_palm_link" xyz="${wrist_axis_x} 0 ${-d['wrist_drop']}" axis="0 0 -1"
-                 lower="${-pi/2}" upper="${pi/2}"/>
+                 child="${prefix}_palm_link" xyz="${wrist_axis_x} 0 ${-d['wrist_drop']}" axis="0 0 -1"/>
     <link name="${prefix}_palm_link">
       <!-- The hand has its own centreline; do not centre it on the wrist housing. -->
       <xacro:servo xyz="${hand_mount_x} ${-d['finger_spacing']/2} ${-d['palm_drop']}" rpy="${pi} 0 0"/>
@@ -92,7 +88,7 @@
   <xacro:macro name="finger" params="prefix role direction length mesh mass mount_x:=0">
     <xacro:hinge name="${prefix}_${role}_finger_joint" parent="${prefix}_palm_link"
                  child="${prefix}_${role}_finger_link" xyz="${mount_x} ${direction*d['finger_spacing']/2} ${-d['palm_drop']}"
-                 axis="${direction} 0 0" lower="0" upper="${pi/3}"/>
+                 axis="${direction} 0 0"/>
     <link name="${prefix}_${role}_finger_link">
       <xacro:mesh_visual mesh="${mesh}" material="frame_grey" rpy="0 0 ${0 if direction == 1 else pi}"/>
       <xacro:mesh_visual mesh="horn_screws" material="frame_grey"/>

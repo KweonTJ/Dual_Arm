@@ -17,9 +17,9 @@ def main():
             assert values.shape == (3,) and np.isfinite(values).all(), location.attrib
     model = load_model(path)
     joints = root.findall('joint')
-    assert len(model['links']) == 23
-    assert len(joints) == 22
-    assert len({j.get('name') for j in joints}) == 22
+    assert len(model['links']) == 24
+    assert len(joints) == 23
+    assert len({j.get('name') for j in joints}) == 23
     moving = [j for j in joints if j.get('type') == 'revolute']
     assert len(moving) == 12
     calibration = yaml.safe_load((PACKAGE/'config/motor_calibration.yaml').read_text())
@@ -45,6 +45,7 @@ def main():
         assert float(material.find('color').get('rgba').split()[3]) == 1.0
     # Independent drawing dimensions catch mm/m mistakes and accidental stretching.
     expected_extents = {
+        'aluminum_crossbar.stl': (.040,.158,.020),
         'ax12a_case.stl': (.040,.032,.050),
         'upper_yoke.stl': (.048,.029,.0647),
         'finger_short.stl': (.048,.029,.0647),
@@ -60,6 +61,26 @@ def main():
         if mesh.get('filename').rsplit('/',1)[-1] in ['shoulder_fork.stl','upper_yoke.stl','palm_frame.stl','finger_short.stl','finger_long.stl']:
             assert np.allclose(np.fromstring(mesh.get('scale','1 1 1'),sep=' '),1)
     assert np.isclose(np.linalg.norm(frames['left_forearm_link'][:3,3]-frames['left_upper_arm_link'][:3,3]),.026+.052+.002)
+    # Check the user-specified pipe and the actual shoulder mesh contact surfaces.
+    pipe = root.find("link[@name='crossbar_link']")
+    assert np.isclose(float(pipe.find('inertial/mass').get('value')), .2)
+    assert np.allclose(np.fromstring(pipe.find('collision/geometry/box').get('size'), sep=' '), [.040,.158,.020])
+    pipe_vertices = np.array(model['meshes']['aluminum_crossbar.stl']).reshape(-1,3)
+    pipe_frame = frames['crossbar_link']
+    pipe_world = pipe_vertices @ pipe_frame[:3,:3].T + pipe_frame[:3,3]
+    pipe_min, pipe_max = pipe_world.min(0), pipe_world.max(0)
+    for side in ['left', 'right']:
+        mount = root.find(f"joint[@name='{side}_mount_joint']")
+        assert mount.get('type') == 'fixed' and mount.find('parent').get('link') == 'crossbar_link'
+        case = next(v for v in model['links'][side+'_mount_link'] if v['mesh']=='ax12a_case.stl')
+        matrix = frames[side+'_mount_link'] @ np.array(case['matrix'])
+        vertices = np.array(model['meshes'][case['mesh']]).reshape(-1,3)
+        vertices = vertices @ matrix[:3,:3].T + matrix[:3,3]
+        lo, hi = vertices.min(0), vertices.max(0)
+        assert np.isclose(lo[2], pipe_max[2], atol=1e-7), (side, 'shoulder bottom must touch pipe top')
+        assert np.all(lo[:2] >= pipe_min[:2]-1e-7) and np.all(hi[:2] <= pipe_max[:2]+1e-7), side
+        assert np.isclose(hi[1] if side=='left' else lo[1], pipe_max[1] if side=='left' else pipe_min[1], atol=1e-7)
+    assert np.isclose(frames['left_mount_link'][1,3]-frames['right_mount_link'][1,3], .118)
     # Locate the output hub in the actual STL, independently of Xacro offsets.
     hardware = stl(PACKAGE/'meshes/ax12a_hardware.stl').reshape(-1, 3)
     hub = hardware[hardware[:, 0] > .0199]
@@ -88,7 +109,7 @@ def main():
         assert len(materials) <= 1, f"RViz Humble material mixing in {link.get('name')}"
         for v in visuals:
             filename = v.find('geometry/mesh').get('filename').rsplit('/',1)[-1]
-            expected = 'servo_black' if filename.startswith('ax12a_') else 'frame_grey'
+            expected = 'servo_black' if filename.startswith('ax12a_') or filename == 'aluminum_crossbar.stl' else 'frame_grey'
             assert v.find('material').get('name') == expected, filename
         inertial = link.find('inertial')
         if link.get('name').endswith('_frame_visual_link'):
@@ -130,7 +151,8 @@ def main():
     for suffix in ['mount_link','shoulder_link','upper_arm_link','forearm_link','palm_link','tool0']:
         left,right = frames['left_'+suffix][:3,3],frames['right_'+suffix][:3,3]
         assert np.allclose(left,right*np.array([1,-1,1]))
-    print(f'PASS: 23 links, 12 revolute + 10 fixed joints, {servo_count} servo meshes')
+    print(f'PASS: 24 links, 12 revolute + 11 fixed joints, {servo_count} servo meshes')
+    print('PASS: 158 x 40 x 20 mm crossbar, 0.2 kg; shoulder bases contact the top, 118 mm centre spacing')
     print(f'PASS: {len(model["meshes"])} finite STL assets; positive physical inertias; estimated mass {mass:.4f} kg')
     print('PASS: all STL surfaces closed, directed edges balanced, positive enclosed volume; material alpha = 1')
     print('PASS: left/right symmetry, all joint transforms, independent gripper branches')

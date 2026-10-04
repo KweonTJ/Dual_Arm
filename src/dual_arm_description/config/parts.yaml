@@ -1,6 +1,13 @@
-# Metres. Explicit dimensions transcribed from ROBOTIS FP04 PDFs (2010 revisions).
+# Metres unless a key ends in _mm. ROBOTIS FP04 dimensions are from PDFs (2010 revisions).
 # Geometry/part associations are simplified and photo-inferred, not vendor CAD.
 # Source index: https://www.robotis.com/service/downloadpage.php?ca_id=7040
+aluminum_crossbar:
+  # User-provided outer dimensions and mass; wall thickness not specified.
+  length_mm: 158       # Left/right, Y.
+  depth_mm: 40         # Front/back, X.
+  height_mm: 20        # Vertical, Z.
+  mass_kg: 0.2
+  # Closed outer envelope; inertia approximated as a uniform box of this mass.
 approximation:
   side_wall: 0.003       # Not explicitly dimensioned on F2/F4 drawing.
   back_wall: 0.002       # Assumption: do not label as manufacturer tolerance.

@@ -1,0 +1,37 @@
+# Provisional preview limits, NOT measured mechanical or hardware safety limits.
+# Positions are relative to URDF q=0 (all motor zeros = 180 degrees).
+# Effort is URDF metadata only; the preview does not simulate or control torque.
+# Velocity values are retained as URDF metadata; RViz/HTML preview speed limiting is disabled.
+joint_limits:
+  left_shoulder_pitch_joint: &shoulder_pitch
+    min_position_deg: -30.0
+    max_position_deg: 60.0
+    max_velocity_deg_s: 20.0
+    max_effort_nm: 0.30
+  left_shoulder_roll_joint: &shoulder_roll
+    min_position_deg: 0.0       # Disable inward shoulder motion in the preview.
+    max_position_deg: 45.0
+    max_velocity_deg_s: 20.0
+    max_effort_nm: 0.30
+  left_elbow_pitch_joint: &elbow_pitch
+    min_position_deg: 0.0       # Forward bending only until assembly is measured.
+    max_position_deg: 90.0
+    max_velocity_deg_s: 20.0
+    max_effort_nm: 0.30
+  left_wrist_roll_joint: &wrist_roll
+    min_position_deg: -67.5
+    max_position_deg: 67.5
+    max_velocity_deg_s: 20.0
+    max_effort_nm: 0.30
+  left_inner_finger_joint: &finger
+    min_position_deg: 0.0
+    max_position_deg: 30.0
+    max_velocity_deg_s: 30.0
+    max_effort_nm: 0.30
+  left_outer_finger_joint: *finger
+  right_shoulder_pitch_joint: *shoulder_pitch
+  right_shoulder_roll_joint: *shoulder_roll
+  right_elbow_pitch_joint: *elbow_pitch
+  right_wrist_roll_joint: *wrist_roll
+  right_inner_finger_joint: *finger
+  right_outer_finger_joint: *finger

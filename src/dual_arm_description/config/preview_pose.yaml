@@ -2,6 +2,11 @@
 joint_state_publisher:
   ros__parameters:
     rate: 30
+    use_smallest_joint_limits: true
+    delta: 0.0
+    publish_default_positions: true
+    publish_default_velocities: false
+    publish_default_efforts: false
     zeros:
       left_shoulder_pitch_joint: 0.0
       left_shoulder_roll_joint: 0.0

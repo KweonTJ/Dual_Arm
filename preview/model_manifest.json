@@ -1,5 +1,5 @@
 {
-  "model_revision": "2212350988",
+  "model_revision": "d1c8cc56e0",
   "preview": "/home/ktj/Dual_Arm/preview/01_\uc591\ud314_\uc804\uccb4.png",
   "motor_calibration": {
     "urdf_zero_radians": 0.0,
@@ -19,8 +19,9 @@
       "right_outer_finger_joint"
     ]
   },
-  "urdf_sha256": "905afe231c4bf8fd8d5dec0138401444929694171d64524f30d8ec84cc75494e",
+  "urdf_sha256": "accd5698e996594f10e6a97acde5ee524c7c6b53e18f8309d2e1cd8af29f80af",
   "mesh_sha256": {
+    "aluminum_crossbar.stl": "bcc8e04d58f8aec14d68a710073d313103093b77e19d0637c7955f4ec896f0d6",
     "ax12a_case.stl": "5753521583128b02dc40a3c071553df348aab25d7be3092fe6765cdd1663b04f",
     "ax12a_hardware.stl": "a63ddc69cbc1bcece31fb88e25ead98506753a5d99a791f6dc7ded7b8cad42bc",
     "ax12a_label.stl": "a329abb5bedd259b21e6bcbf5f577c09bd05b4b63241ecbc2d7c81171c4136b1",
