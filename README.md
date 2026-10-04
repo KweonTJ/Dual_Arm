@@ -1,6 +1,6 @@
 # AX-12A 양팔 로봇 URDF
 
-ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양팔 로봇의 **공식 FP04 부품 도면 치수를 반영한 사진 기반 모델**입니다. 사진에서 관찰되는 모터 6개와 비대칭 집게를 한쪽 팔로 구성하고, 좌우 두 팔을 158 × 40 × 20 mm 알루미늄 연결 파이프 위에 배치했습니다. 실제 하드웨어에 명령을 전송하는 기능은 포함하지 않습니다.
+ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양팔 로봇의 **공식 FP04 부품 도면 치수를 반영한 사진 기반 모델**입니다. 사진에서 관찰되는 모터 6개와 비대칭 집게를 한쪽 팔로 구성하고, 좌우 두 팔을 158 × 40 × 20 mm 알루미늄 연결 파이프 위에 배치했습니다. `display.sh`는 프리뷰 전용입니다. 실제 AX-12A 보호 설정/구동은 별도 [dual_arm_hardware](src/dual_arm_hardware/README.md)와 `hardware.sh`에서 제공합니다. 현재 실기 연결 정보가 미입력되어 실제 장치에는 적용하지 않았습니다.
 
 ![URDF에서 렌더링한 모델](preview/01_양팔_전체.png)
 
@@ -137,7 +137,7 @@ ROS 관례로 +X는 앞, +Y는 로봇의 왼쪽, +Z는 위입니다. `left`와 `
 
 출력 노드는 이름 중복·누락·알 수 없는 관절·NaN/Inf가 있는 입력을 한 묶음 전체 거부합니다. 정상 목표 입력이 0.5초 끊기면 마지막 표시 자세를 유지하며, 이미 오래된 목표는 뒤늦게 적용하지 않습니다. velocity와 effort 피드백은 만들어 내지 않습니다. 이 경로는 **합성 프리뷰 전용**이며 실제 모터의 측정 `/joint_states`를 이 제한기에 넣으면 안 됩니다. 실기/물리 시뮬레이터를 붙일 때는 프리뷰 발행기를 끄고 실제 상태 발행기를 사용해야 합니다.
 
-현재 환경은 RViz 기구학 프리뷰입니다. 물리 엔진, 중력·접촉 토크 계산, 충돌 회피, 가속도/jerk 제한, 모터 구동기는 없습니다. 따라서 현재의 각도 제한만으로 실기 과부하를 막았다고 볼 수 없습니다. 실제 AX-12A에는 조립 후 확인한 CW/CCW Angle Limit, Moving Speed, Max Torque/Torque Limit, 과열·과부하 Shutdown 설정과 부하 검증이 필요합니다. [ROBOTIS AX-12A 공식 제어표](https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#control-table)에서 이 설정을 확인할 수 있습니다. Torque Limit은 N·m가 아닌 출력 비율이고 전원을 켜면 Max Torque 값으로 초기화됩니다. 이 프로젝트는 해당 레지스터에 쓰지 않습니다.
+`display.sh`는 RViz 기구학 프리뷰입니다. 물리 엔진, 중력·접촉 토크 계산, 충돌 회피, 가속도/jerk 제한은 없습니다. 별도 실기 구동기 `dual_arm_hardware`는 CW/CCW Angle Limit, Max Torque/Torque Limit, 과열·과부하 Shutdown을 적용하고 재조회한 뒤 활성화를 허용합니다. 실제 연결 정보와 출력 상한이 설정되지 않아 아직 모터에 적용하지 않았습니다. [실기 설정 및 실행 안내](src/dual_arm_hardware/README.md)를 확인하세요. Torque Limit은 N·m가 아닌 출력 비율이고 전원을 켜면 Max Torque 값으로 초기화됩니다. [ROBOTIS AX-12A 공식 제어표](https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#control-table)
 
 검증 명령:
 
@@ -190,6 +190,10 @@ PYTHONNOUSERSITE=1 MPLCONFIGDIR=/tmp/dual_arm_mpl \
 미리보기 재생성에는 시스템 `python3-numpy`, `python3-matplotlib`가 필요합니다. 이 환경의 사용자 설치 matplotlib와 시스템 mplot3d가 충돌하므로 위 명령은 시스템 패키지를 사용합니다. 생성된 HTML에는 모든 메시가 포함되어 있어 재생성 후에도 별도 서버가 필요 없습니다.
 
 STL 형상 재생성은 `python3 src/dual_arm_description/scripts/generate_meshes.py`로 수행합니다. `display.sh`의 자동 갱신에는 시스템 `python3-numpy`, `python3-vtk9`, `python3-yaml`, `python3-matplotlib`가 필요하며, 이 환경에 설치되어 있습니다. 스크립트는 `/usr/bin/python3`와 `PYTHONNOUSERSITE=1`을 사용해 사용자 설치 matplotlib 충돌을 피합니다. 이미 생성된 모델을 위의 직접 ROS launch 명령으로 보는 경우에는 메시·프리뷰 생성용 의존성이 필요 없습니다.
+
+## 실기 상태 모니터
+
+실기 구동기와 별도 터미널에서 `./monitor.sh`를 실행하면 12개 모터의 현재각·목표각·속도·부하·전압·온도·토크 ON/OFF·토크 제한 비율과 오류를 볼 수 있습니다. `./monitor.sh --csv`는 수신 값을 `log/monitor/`에 기록하고, `./monitor.sh --demo`는 연결 없이 예시 화면을 보여줍니다. 모니터는 읽기 전용이며, 수신이 없으면 `WAITING`, 중단되면 `STALE`로 표시합니다. 사용법은 [dual_arm_monitor](src/dual_arm_monitor/README.md)를 참고하세요.
 
 ## 검증 기록
 

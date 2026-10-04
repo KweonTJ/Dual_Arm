@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.8)
+project(dual_arm_monitor)
+find_package(ament_cmake REQUIRED)
+install(PROGRAMS scripts/monitor_node.py DESTINATION lib/${PROJECT_NAME})
+install(FILES scripts/monitor_view.py DESTINATION lib/${PROJECT_NAME})
+install(FILES README.md DESTINATION share/${PROJECT_NAME})
+ament_package()

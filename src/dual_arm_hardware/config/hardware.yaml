@@ -1,0 +1,23 @@
+# Fill from the actual robot; missing values deliberately prevent any device I/O.
+# Transport: direct DYNAMIXEL Protocol 1.0 TTL bus (e.g. U2D2 TTL).
+# A controller board needs compatible firmware/bridge; a USB port alone is not enough.
+port: null
+baudrate: null
+# Output percentage, NOT N.m. Do not infer this from URDF effort or stall torque.
+torque_limit_percent: null
+# +1: increasing raw position increases the corresponding URDF joint angle.
+# -1: increasing raw position decreases the URDF joint angle.
+# Neutral angles come from dual_arm_description/config/motor_calibration.yaml (180 deg).
+motors:
+  left_shoulder_pitch_joint: {id: null, direction: null}
+  left_shoulder_roll_joint: {id: null, direction: null}
+  left_elbow_pitch_joint: {id: null, direction: null}
+  left_wrist_roll_joint: {id: null, direction: null}
+  left_inner_finger_joint: {id: null, direction: null}
+  left_outer_finger_joint: {id: null, direction: null}
+  right_shoulder_pitch_joint: {id: null, direction: null}
+  right_shoulder_roll_joint: {id: null, direction: null}
+  right_elbow_pitch_joint: {id: null, direction: null}
+  right_wrist_roll_joint: {id: null, direction: null}
+  right_inner_finger_joint: {id: null, direction: null}
+  right_outer_finger_joint: {id: null, direction: null}
