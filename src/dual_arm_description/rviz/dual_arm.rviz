@@ -1,0 +1,54 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Background Color: 32; 38; 46
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid (50 mm)
+      Enabled: true
+      Cell Size: 0.05
+      Plane Cell Count: 20
+      Color: 82; 91; 100
+      Reference Frame: base_link
+    - Class: rviz_default_plugins/RobotModel
+      Name: Dual Arm
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+        Depth: 1
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1
+    - Class: rviz_default_plugins/TF
+      Name: Joint frames
+      Enabled: false
+      Show Names: true
+      Marker Scale: 0.15
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Select
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 0.85
+      Focal Point: {X: 0.0, Y: 0.0, Z: 0.25}
+      Pitch: 0.20
+      Yaw: 0.45
+      Name: Current View
+      Near Clip Distance: 0.001
+      Target Frame: base_link
+Window Geometry:
+  Width: 1400
+  Height: 950

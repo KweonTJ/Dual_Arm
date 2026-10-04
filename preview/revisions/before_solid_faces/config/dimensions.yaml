@@ -1,0 +1,15 @@
+# Units: metres, kilograms, radians. See README.md for drawing references.
+# Frame geometry now follows FP04-F2/F4/F5/F11 drawings; assembly offsets remain provisional.
+mount_spacing: 0.240          # Virtual base; no connecting torso is present in photos.
+mount_height: 0.390          # Virtual height above the viewer floor.
+shoulder_outboard: 0.040     # Direct end mount: 38 mm case tail + 2 mm adapter to next axis.
+upper_arm_length: 0.080     # F2 26 + F4 52 + assumed F4 back wall 2 mm.
+wrist_drop: 0.082           # Elbow axis to wrist output plane; allows both cases to clear.
+palm_drop: 0.048            # Wrist plane to the two finger axes.
+finger_spacing: 0.037      # Centre distance of independent finger motors.
+short_finger_length: 0.054  # F4 52 mm inner-back distance + assumed 2 mm wall.
+long_finger_length: 0.0833  # F2 26 + F11 57.3 mm; flush mounting assumed.
+servo_mass: 0.0546
+# Model limits for visual exploration, NOT calibrated hardware limits.
+arm_effort: 0.30
+arm_velocity: 1.0

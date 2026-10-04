@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Axis signs remain provisional; URDF q=0 corresponds to motor zero 180 deg. -->
+  <xacro:macro name="arm" params="prefix side">
+    <joint name="${prefix}_mount_joint" type="fixed">
+      <parent link="base_link"/><child link="${prefix}_mount_link"/>
+      <origin xyz="0 ${side*mount_spacing/2} ${mount_height}"/>
+    </joint>
+    <link name="${prefix}_mount_link">
+      <xacro:servo rpy="0 0 ${pi/2}"/>
+      <xacro:box_collision size="0.032 0.040 0.050" xyz="0 0 -0.013"/>
+      <xacro:box_inertia mass="${d['servo_mass']}" x="0.032" y="0.040" z="0.050" xyz="0 0 -0.013"/>
+    </link>
+    <xacro:hinge name="${prefix}_shoulder_pitch_joint" parent="${prefix}_mount_link"
+                 child="${prefix}_shoulder_link" xyz="0 ${side*0.022} 0" axis="0 -1 0"
+                 lower="${-pi/2}" upper="${pi/2}"/>
+    <link name="${prefix}_shoulder_link">
+      <!-- The second motor's long case points inward to the first motor.
+           Rotate the housing about its shaft; the output fork still points down. -->
+      <xacro:servo xyz="0 ${side*d['shoulder_outboard']} 0" rpy="${-side*pi/2} 0 0"/>
+      <xacro:box_collision size="0.040 0.050 0.032" xyz="0 ${side*(d['shoulder_outboard']-0.013)} 0"/>
+      <xacro:box_collision size="0.036 ${d['shoulder_outboard']-0.038} 0.032" xyz="0 ${side*(d['shoulder_outboard']-0.038)/2} 0"/>
+      <xacro:box_inertia mass="${d['servo_mass']+0.012}" x="0.040" y="${d['shoulder_outboard']+0.012}" z="0.032"
+                         xyz="0 ${side*(d['servo_mass']*(d['shoulder_outboard']-0.013)+0.012*(d['shoulder_outboard']-0.038)/2)/(d['servo_mass']+0.012)} 0"/>
+    </link>
+    <xacro:frame_visual_link prefix="${prefix}_shoulder" parent="${prefix}_shoulder_link"
+                             mesh="shoulder_adapter" rpy="0 0 ${0 if side == 1 else pi}"
+                             scale="1 ${(d['shoulder_outboard']-0.038)/0.002} 1"/>
+    <xacro:hinge name="${prefix}_shoulder_roll_joint" parent="${prefix}_shoulder_link"
+                 child="${prefix}_upper_arm_link" xyz="0 ${side*d['shoulder_outboard']} 0" axis="${side} 0 0"
+                 lower="${-pi/3}" upper="${pi/2}"/>
+    <link name="${prefix}_upper_arm_link">
+      <xacro:mesh_visual mesh="shoulder_fork" material="frame_grey"/>
+      <xacro:mesh_visual mesh="horn_screws" material="frame_grey"/>
+      <!-- F2 back at -26 mm meets inverted F4 back 54 mm above elbow.
+           Keep actual part dimensions; moving an axis must not stretch the part. -->
+      <xacro:mesh_visual mesh="upper_yoke" material="frame_grey" xyz="0 0 ${-d['upper_arm_length']}" rpy="${pi} 0 ${pi/2}"/>
+      <xacro:mesh_visual mesh="horn_screws" material="frame_grey" xyz="0 0 ${-d['upper_arm_length']}" rpy="0 0 ${pi/2}"/>
+      <xacro:box_collision size="0.003 0.025 0.037" xyz="0.0225 0 -0.0075"/>
+      <xacro:box_collision size="0.003 0.025 0.037" xyz="-0.0225 0 -0.0075"/>
+      <xacro:box_collision size="0.048 0.025 0.002" xyz="0 0 -0.025"/>
+      <xacro:box_collision size="0.029 0.003 0.0647" xyz="0 0.0225 ${-d['upper_arm_length']+0.02165}"/>
+      <xacro:box_collision size="0.029 0.003 0.0647" xyz="0 -0.0225 ${-d['upper_arm_length']+0.02165}"/>
+      <xacro:box_collision size="0.029 0.048 0.002" xyz="0 0 ${-d['upper_arm_length']+0.053}"/>
+      <xacro:box_inertia mass="0.026" x="0.048" y="0.048" z="${d['upper_arm_length']+0.011}"
+                         xyz="0 0 ${-d['upper_arm_length']/2}"/>
+    </link>
+    <!-- Elbow casing is downstream; upper fork holds its output horn. -->
+    <xacro:hinge name="${prefix}_elbow_pitch_joint" parent="${prefix}_upper_arm_link"
+                 child="${prefix}_forearm_link" xyz="0 0 ${-d['upper_arm_length']}" axis="0 -1 0"
+                 lower="${-pi/2}" upper="${pi/2}"/>
+    <link name="${prefix}_forearm_link">
+      <xacro:servo rpy="0 0 ${pi/2}"/>
+      <!-- Corrected front/back direction: the two-motor hand is ahead of the wrist housing.
+           The long case extends toward -X from its shaft;
+           the output shaft still points down (-Z). This is mounting orientation,
+           not a change to the 180-degree motor zero. -->
+      <xacro:servo xyz="${wrist_axis_x} 0 ${-d['wrist_drop']+0.022}" rpy="0 ${pi/2} 0"/>
+      <xacro:box_collision size="0.032 0.040 0.050" xyz="0 0 -0.013"/>
+      <xacro:box_collision size="0.050 0.032 0.040" xyz="${wrist_axis_x-0.013} 0 ${-d['wrist_drop']+0.022}"/>
+      <xacro:box_inertia mass="${2*d['servo_mass']+0.010}" x="${max(0.016,wrist_axis_x+0.012)-min(-0.016,wrist_axis_x-0.038)}" y="0.044" z="${d['wrist_drop']+0.012}"
+                         xyz="${d['servo_mass']*(wrist_axis_x-0.013)/(2*d['servo_mass']+0.010)} 0 ${(-0.013-d['wrist_drop']+0.022)/2}"/>
+    </link>
+    <xacro:frame_visual_link prefix="${prefix}_forearm" parent="${prefix}_forearm_link"
+                             mesh="wrist_adapter" xyz="0 0 -0.033"
+                             scale="1 1 ${(d['wrist_drop']-0.033)/0.040}"/>
+    <xacro:hinge name="${prefix}_wrist_roll_joint" parent="${prefix}_forearm_link"
+                 child="${prefix}_palm_link" xyz="${wrist_axis_x} 0 ${-d['wrist_drop']}" axis="0 0 -1"
+                 lower="${-pi/2}" upper="${pi/2}"/>
+    <link name="${prefix}_palm_link">
+      <!-- The hand has its own centreline; do not centre it on the wrist housing. -->
+      <xacro:servo xyz="${hand_mount_x} ${-d['finger_spacing']/2} ${-d['palm_drop']}" rpy="${pi} 0 0"/>
+      <xacro:servo xyz="${hand_mount_x} ${d['finger_spacing']/2} ${-d['palm_drop']}" rpy="${pi} 0 0"/>
+      <xacro:box_collision size="0.040 0.032 0.050" xyz="${hand_mount_x} ${-d['finger_spacing']/2} ${-d['palm_drop']+0.013}"/>
+      <xacro:box_collision size="0.040 0.032 0.050" xyz="${hand_mount_x} ${d['finger_spacing']/2} ${-d['palm_drop']+0.013}"/>
+      <xacro:box_collision size="0.028 0.0785 0.003" xyz="${hand_mount_x} 0 -0.0015"/>
+      <xacro:box_collision size="0.028 0.003 0.040" xyz="${hand_mount_x} 0.03775 -0.020"/>
+      <xacro:box_collision size="0.028 0.003 0.040" xyz="${hand_mount_x} -0.03775 -0.020"/>
+      <xacro:box_inertia mass="${2*d['servo_mass']+0.020}" x="0.048" y="0.0785" z="${d['palm_drop']+0.012}"
+                         xyz="${hand_mount_x} 0 ${(-d['palm_drop']+0.013)*0.85}"/>
+    </link>
+    <xacro:frame_visual_link prefix="${prefix}_palm" parent="${prefix}_palm_link"
+                             mesh="palm_frame" xyz="${hand_mount_x} 0 0"/>
+    <xacro:finger prefix="${prefix}" role="inner" direction="${-side}" length="${d['short_finger_length']}" mesh="finger_short" mass="0.022" mount_x="${hand_mount_x}"/>
+    <xacro:finger prefix="${prefix}" role="outer" direction="${side}" length="${d['long_finger_length']}" mesh="finger_long" mass="0.028" mount_x="${hand_mount_x}"/>
+    <joint name="${prefix}_tool_joint" type="fixed">
+      <parent link="${prefix}_palm_link"/><child link="${prefix}_tool0"/>
+      <origin xyz="${hand_mount_x} 0 ${-d['palm_drop']-d['short_finger_length']+0.01}"/>
+    </joint>
+    <link name="${prefix}_tool0"/>
+  </xacro:macro>
+  <xacro:macro name="finger" params="prefix role direction length mesh mass mount_x:=0">
+    <xacro:hinge name="${prefix}_${role}_finger_joint" parent="${prefix}_palm_link"
+                 child="${prefix}_${role}_finger_link" xyz="${mount_x} ${direction*d['finger_spacing']/2} ${-d['palm_drop']}"
+                 axis="${direction} 0 0" lower="0" upper="${pi/3}"/>
+    <link name="${prefix}_${role}_finger_link">
+      <xacro:mesh_visual mesh="${mesh}" material="frame_grey" rpy="0 0 ${0 if direction == 1 else pi}"/>
+      <xacro:mesh_visual mesh="horn_screws" material="frame_grey"/>
+      <xacro:property name="fork_drop" value="${0.054 if role == 'inner' else 0.026}"/>
+      <xacro:box_collision size="0.003 0.029 ${fork_drop+0.011}" xyz="0.0225 0 ${(0.011-fork_drop)/2}"/>
+      <xacro:box_collision size="0.003 0.029 ${fork_drop+0.011}" xyz="-0.0225 0 ${(0.011-fork_drop)/2}"/>
+      <xacro:box_collision size="0.048 0.029 0.002" xyz="0 0 ${-fork_drop+0.001}"/>
+      <xacro:if value="${role == 'outer'}">
+        <!-- Only the lower F11 is yawed 90 degrees; its X/Y envelope swaps. -->
+        <xacro:box_collision size="0.032 0.029 ${length-fork_drop}" xyz="0 0 ${-(length+fork_drop)/2}"/>
+      </xacro:if>
+      <xacro:box_inertia mass="${mass}" x="0.048" y="${0.029 if role == 'outer' else 0.032}" z="${length+0.011}" xyz="0 0 ${-length/2}"/>
+    </link>
+  </xacro:macro>
+</robot>

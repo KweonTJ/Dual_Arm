@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Use two uniform colors to distinguish motors from structural frames. -->
+  <material name="servo_black"><color rgba="0.04 0.04 0.04 1"/></material>
+  <material name="frame_grey"><color rgba="0.65 0.65 0.65 1"/></material>
+
+  <xacro:macro name="mesh_visual" params="mesh material xyz:='0 0 0' rpy:='0 0 0' scale:='1 1 1'">
+    <visual>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <geometry><mesh filename="package://dual_arm_description/meshes/${mesh}.stl" scale="${scale}"/></geometry>
+      <material name="${material}"/>
+    </visual>
+  </xacro:macro>
+  <!-- RViz Humble applies the first visual's material to all visuals in a link.
+       Keep gray frames in fixed visual-only leaves when the parent has motors.
+       Collision and aggregate inertia remain on the original physical link. -->
+  <xacro:macro name="frame_visual_link" params="prefix parent mesh xyz:='0 0 0' rpy:='0 0 0' scale:='1 1 1'">
+    <joint name="${prefix}_frame_visual_joint" type="fixed">
+      <parent link="${parent}"/><child link="${prefix}_frame_visual_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="${prefix}_frame_visual_link">
+      <xacro:mesh_visual mesh="${mesh}" material="frame_grey" xyz="${xyz}" rpy="${rpy}" scale="${scale}"/>
+    </link>
+  </xacro:macro>
+  <xacro:macro name="box_collision" params="size xyz:='0 0 0' rpy:='0 0 0'">
+    <collision><origin xyz="${xyz}" rpy="${rpy}"/><geometry><box size="${size}"/></geometry></collision>
+  </xacro:macro>
+  <xacro:macro name="box_inertia" params="mass x y z xyz:='0 0 0'">
+    <inertial>
+      <origin xyz="${xyz}"/><mass value="${mass}"/>
+      <inertia ixx="${mass*(y*y+z*z)/12}" ixy="0" ixz="0"
+               iyy="${mass*(x*x+z*z)/12}" iyz="0" izz="${mass*(x*x+y*y)/12}"/>
+    </inertial>
+  </xacro:macro>
+  <xacro:macro name="servo" params="xyz:='0 0 0' rpy:='0 0 0'">
+    <xacro:mesh_visual mesh="ax12a_case" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
+    <xacro:mesh_visual mesh="ax12a_hardware" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
+    <xacro:mesh_visual mesh="ax12a_label" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
+    <xacro:mesh_visual mesh="ax12a_lettering" material="servo_black" xyz="${xyz}" rpy="${rpy}"/>
+  </xacro:macro>
+  <xacro:macro name="hinge" params="name parent child xyz axis lower upper">
+    <joint name="${name}" type="revolute">
+      <parent link="${parent}"/><child link="${child}"/>
+      <origin xyz="${xyz}"/><axis xyz="${axis}"/>
+      <limit lower="${lower}" upper="${upper}" effort="${d['arm_effort']}" velocity="${d['arm_velocity']}"/>
+      <dynamics damping="0.02" friction="0.01"/>
+    </joint>
+  </xacro:macro>
+</robot>

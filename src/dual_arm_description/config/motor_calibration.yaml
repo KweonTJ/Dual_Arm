@@ -1,0 +1,18 @@
+# User-specified motor zero, 2026-10-04. Angle units are degrees, not encoder ticks.
+# At the modeled neutral pose (URDF q=0 rad), every motor reads 180 degrees.
+# Joint direction signs, motor IDs and hardware travel limits remain uncalibrated.
+urdf_zero_radians: 0.0
+motor_zero_degrees: 180.0
+joints:
+  - left_shoulder_pitch_joint
+  - left_shoulder_roll_joint
+  - left_elbow_pitch_joint
+  - left_wrist_roll_joint
+  - left_inner_finger_joint
+  - left_outer_finger_joint
+  - right_shoulder_pitch_joint
+  - right_shoulder_roll_joint
+  - right_elbow_pitch_joint
+  - right_wrist_roll_joint
+  - right_inner_finger_joint
+  - right_outer_finger_joint

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<robot name="bioloid_dual_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="dimensions_file" default="$(find dual_arm_description)/config/dimensions.yaml"/>
+  <xacro:property name="d" value="${xacro.load_yaml('$(arg dimensions_file)')}"/>
+  <xacro:arg name="mount_spacing" default="${d['mount_spacing']}"/>
+  <xacro:arg name="mount_height" default="${d['mount_height']}"/>
+  <xacro:property name="mount_spacing" value="$(arg mount_spacing)"/>
+  <xacro:property name="mount_height" value="$(arg mount_height)"/>
+  <xacro:property name="wrist_axis_x" value="${d.get('wrist_axis_x', 0.013)}"/>
+  <xacro:property name="hand_mount_x" value="${d.get('hand_mount_x', 0.0)}"/>
+  <xacro:include filename="components.xacro"/>
+  <xacro:include filename="arm.xacro"/>
+  <!-- Virtual assembly datum only: no fabricated torso/stand geometry. -->
+  <link name="base_link"/>
+  <xacro:arm prefix="left" side="1"/>
+  <xacro:arm prefix="right" side="-1"/>
+</robot>

@@ -1,0 +1,37 @@
+{
+  "model_revision": "2212350988",
+  "preview": "/home/ktj/Dual_Arm/preview/01_\uc591\ud314_\uc804\uccb4.png",
+  "motor_calibration": {
+    "urdf_zero_radians": 0.0,
+    "motor_zero_degrees": 180.0,
+    "joints": [
+      "left_shoulder_pitch_joint",
+      "left_shoulder_roll_joint",
+      "left_elbow_pitch_joint",
+      "left_wrist_roll_joint",
+      "left_inner_finger_joint",
+      "left_outer_finger_joint",
+      "right_shoulder_pitch_joint",
+      "right_shoulder_roll_joint",
+      "right_elbow_pitch_joint",
+      "right_wrist_roll_joint",
+      "right_inner_finger_joint",
+      "right_outer_finger_joint"
+    ]
+  },
+  "urdf_sha256": "905afe231c4bf8fd8d5dec0138401444929694171d64524f30d8ec84cc75494e",
+  "mesh_sha256": {
+    "ax12a_case.stl": "5753521583128b02dc40a3c071553df348aab25d7be3092fe6765cdd1663b04f",
+    "ax12a_hardware.stl": "a63ddc69cbc1bcece31fb88e25ead98506753a5d99a791f6dc7ded7b8cad42bc",
+    "ax12a_label.stl": "a329abb5bedd259b21e6bcbf5f577c09bd05b4b63241ecbc2d7c81171c4136b1",
+    "ax12a_lettering.stl": "ea937da14899ffdad30af52cca018ae1a40927f689081cceca994ab44947fce5",
+    "shoulder_adapter.stl": "3b29a6e86c73d29dc2cd11dd1bda652d6ccc4e504bf630c18c461b74eff938fc",
+    "shoulder_fork.stl": "341a47950ccf82459c739b5d5fbc73e2e45c0bfed9966a4909869c1bced12211",
+    "horn_screws.stl": "f33b4486fabaf9bd19db69b3caf6113a8def848921ce375b9d67ed6218067c69",
+    "upper_yoke.stl": "cdda8e9c94787b757dca8f00c16c17994556a082656e7cd74ca7e3e351d49430",
+    "wrist_adapter.stl": "9556724af976964cd2432204e6e25cd81ac93c0149050f1b5a7d509cd46d7c36",
+    "palm_frame.stl": "9b52d31ac06c783ad68536dd7d8b2f32405f74c532ec604716fe272f7f0f0dc4",
+    "finger_short.stl": "cdda8e9c94787b757dca8f00c16c17994556a082656e7cd74ca7e3e351d49430",
+    "finger_long.stl": "38bc129c0a23ae1f124c90f2bc9dd07e8c851ef87de01bb4616f53695642e57f"
+  }
+}
