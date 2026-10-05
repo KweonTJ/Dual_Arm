@@ -1,0 +1,2 @@
+# Tested engine version; install into the Python environment used by simulation.sh.
+mujoco==3.10.0

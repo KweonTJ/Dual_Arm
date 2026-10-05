@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.8)
+project(dual_arm_simulation)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/simulation_app.py DESTINATION lib/${PROJECT_NAME})
+install(FILES scripts/simulation_model.py DESTINATION lib/${PROJECT_NAME})
+ament_package()

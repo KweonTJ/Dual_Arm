@@ -1,8 +1,16 @@
-# AX-12A 양팔 로봇 URDF
+# AX-12A 양팔 로봇 — URDF와 디지털 트윈 시뮬레이션
 
 ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양팔 로봇의 **공식 FP04 부품 도면 치수를 반영한 사진 기반 모델**입니다. 사진에서 관찰되는 모터 6개와 비대칭 집게를 한쪽 팔로 구성하고, 좌우 두 팔을 158 × 40 × 20 mm 알루미늄 연결 파이프 위에 배치했습니다. `display.sh`는 프리뷰 전용입니다. 실제 AX-12A 보호 설정/구동은 별도 [dual_arm_hardware](src/dual_arm_hardware/README.md)와 `hardware.sh`에서 제공합니다. 현재 실기 연결 정보가 미입력되어 실제 장치에는 적용하지 않았습니다.
 
 ![URDF에서 렌더링한 모델](preview/01_양팔_전체.png)
+
+## 디지털 트윈 물리 시뮬레이션
+
+`./simulation.sh` 또는 `./monitor.sh --sim`으로 **3D 물리 시뮬레이션 + 관절 조작 + 상태 모니터**를 엽니다. 12개 목표각을 조작하면 중력·관성·접촉과 관절별 시뮬레이션 토크 상한에 따라 움직이고, 계산된 현재각·오차·속도·토크/상한을 함께 확인할 수 있습니다. 중력 보상과 관절별 PID를 적용하며, 어깨 90° 시험 버튼, 모터 OFF/ON, 일시정지, 초기화, 카메라 조작과 CSV 기록을 지원합니다. 기존 `display.sh`는 RViz 형상 프리뷰입니다.
+
+현재는 실물 보정 및 실기 동기화 전의 초기 물리 모델입니다. 상세 사용법과 검증 범위는 [dual_arm_simulation](src/dual_arm_simulation/README.md)을 참고하세요.
+
+![디지털 트윈 시뮬레이터 화면](preview/06_디지털_트윈_시뮬레이션.png)
 
 ## 바로 보기
 
@@ -116,8 +124,8 @@ ROS 관례로 +X는 앞, +Y는 로봇의 왼쪽, +Z는 위입니다. `left`와 `
 
 | 관절 접미사 | 용도 | 모델 축 | 모델 범위 |
 |---|---|---|---|
-| `shoulder_pitch_joint` | 어깨 전후 | −Y | −30° ~ +60° |
-| `shoulder_roll_joint` | 어깨 좌우 | 왼팔 +X / 오른팔 −X | 0° ~ +45° |
+| `shoulder_pitch_joint` | 어깨 전후 | −Y | −30° ~ +90° |
+| `shoulder_roll_joint` | 어깨 좌우 | 왼팔 +X / 오른팔 −X | 0° ~ +90° |
 | `elbow_pitch_joint` | 팔꿈치 | −Y | 0° ~ +90° |
 | `wrist_roll_joint` | 손목 | −Z | −67.5° ~ +67.5° |
 | `inner_finger_joint` | 안쪽 짧은 집게 | 왼팔 −X / 오른팔 +X | 0° ~ 30° |

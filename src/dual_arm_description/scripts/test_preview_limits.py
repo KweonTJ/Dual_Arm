@@ -19,7 +19,7 @@ class PreviewLimitsTests(unittest.TestCase):
         self.guard = PreviewLimiter(self.limits)
 
     def test_requested_ranges_in_expanded_urdf(self):
-        expected = {'shoulder_pitch': (-30, 60), 'shoulder_roll': (0, 45),
+        expected = {'shoulder_pitch': (-30, 90), 'shoulder_roll': (0, 90),
                     'elbow_pitch': (0, 90), 'wrist_roll': (-67.5, 67.5),
                     'inner_finger': (0, 30), 'outer_finger': (0, 30)}
         self.assertEqual(len(self.limits), 12)

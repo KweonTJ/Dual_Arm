@@ -1,0 +1,20 @@
+# Provisional physics parameters. Not an identified AX-12A servo model.
+timestep: 0.001
+gravity: [0.0, 0.0, -9.81]
+contact_friction: [0.8, 0.005, 0.0001]
+# Simulation-only output caps: not physical AX-12A continuous torque ratings,
+# not a conversion from the hardware Torque Limit register, and not hardware writes.
+# Sampled model gravity loads: shoulders ~0.51 Nm, elbow ~0.27 Nm,
+# wrist <0.007 Nm, fingers <0.012 Nm (without payload).
+# Angle ranges still come from URDF. No velocity cap or target slew limiting.
+controller:
+  bias_compensation: true       # Gravity + Coriolis through the SAME capped actuator.
+  tracking_tolerance_deg: 0.5
+  settled_velocity_deg_s: 1.0
+  profiles:
+    shoulder_pitch: {kp: 4.0, kd: 0.40, ki: 1.5, integral_limit_nm: 0.06, effort_limit_nm: 0.75}
+    shoulder_roll:  {kp: 4.0, kd: 0.40, ki: 1.5, integral_limit_nm: 0.06, effort_limit_nm: 0.75}
+    elbow_pitch:    {kp: 3.0, kd: 0.20, ki: 1.0, integral_limit_nm: 0.04, effort_limit_nm: 0.40}
+    wrist_roll:     {kp: 1.2, kd: 0.035, ki: 0.8, integral_limit_nm: 0.02, effort_limit_nm: 0.12}
+    inner_finger:   {kp: 0.6, kd: 0.020, ki: 0.5, integral_limit_nm: 0.02, effort_limit_nm: 0.06}
+    outer_finger:   {kp: 0.6, kd: 0.020, ki: 0.5, integral_limit_nm: 0.02, effort_limit_nm: 0.06}

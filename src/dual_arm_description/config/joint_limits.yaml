@@ -5,12 +5,12 @@
 joint_limits:
   left_shoulder_pitch_joint: &shoulder_pitch
     min_position_deg: -30.0
-    max_position_deg: 60.0
+    max_position_deg: 90.0
     max_velocity_deg_s: 20.0
     max_effort_nm: 0.30
   left_shoulder_roll_joint: &shoulder_roll
     min_position_deg: 0.0       # Disable inward shoulder motion in the preview.
-    max_position_deg: 45.0
+    max_position_deg: 90.0
     max_velocity_deg_s: 20.0
     max_effort_nm: 0.30
   left_elbow_pitch_joint: &elbow_pitch
