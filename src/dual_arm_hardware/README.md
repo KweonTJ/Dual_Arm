@@ -6,7 +6,7 @@
 
 ## 필요한 설정
 
-`config/hardware.yaml`에 실제 포트, baudrate, `torque_limit_percent`, 관절별 ID와 회전 방향을 입력합니다. ID는 중복 없는 0~253이며 254번 broadcast는 사용하지 않습니다. 방향은 URDF 각도를 늘릴 때 모터 raw 위치가 증가하면 +1, 감소하면 −1입니다. 중립은 `dual_arm_description/config/motor_calibration.yaml`의 180°를 사용합니다. 0~300°/0~1023 변환에서 가장 가까운 중립 raw 값은 614(약 180.06°)이며, 각도 경계는 안쪽으로 반올림합니다. 실제 장착 방향과 영점은 실측해 맞춰야 합니다.
+`config/hardware.yaml`에 실제 포트, baudrate, `torque_limit_percent`, 관절별 회전 방향을 입력합니다. ID는 사용자 사진 기준으로 입력되어 있습니다(오른팔: 어깨부터 5·4·3·2, 안쪽 집게 12·바깥 집게 1 / 왼팔: 어깨부터 10·9·8·7, 안쪽 집게 13·바깥 집게 6). ID는 중복 없는 0~253이며 254번 broadcast는 사용하지 않습니다. 방향은 URDF 각도를 늘릴 때 모터 raw 위치가 증가하면 +1, 감소하면 −1입니다. 중립은 `dual_arm_description/config/motor_calibration.yaml`의 180°를 사용합니다. 0~300°/0~1023 변환에서 가장 가까운 중립 raw 값은 614(약 180.06°)이며, 각도 경계는 안쪽으로 반올림합니다. 실제 장착 방향과 영점은 실측해 맞춰야 합니다.
 
 출력 상한은 **% 단위**입니다. URDF의 `effort=0.3 N·m`를 자동 환산하지 않습니다. 예를 들어 25%를 지정하면 raw 255를 요청하지만, 이를 정확한 0.375 N·m로 해석하면 안 됩니다. `floor(1023 × percent / 100)`으로 계산하며 기존 모터의 Max Torque/Torque Limit이 더 낮으면 그 낮은 값을 유지합니다.
 

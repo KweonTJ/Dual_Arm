@@ -35,6 +35,7 @@ class PhysicsTests(unittest.TestCase):
         self.assertEqual(len(sim.names), 12)
         self.assertEqual(sim.model.nu, 12)
         self.assertEqual(sim.model.nq, 19)  # 12 hinges + test object's free joint.
+        self.assertEqual(sim.motor_ids, [10, 9, 8, 7, 13, 6, 5, 4, 3, 2, 12, 1])
         self.assertAlmostEqual(sum(sim.model.body_mass) - .025, 1.0912)
         for side in ('left', 'right'):
             palm = sim.data.body(side + '_palm_link').xpos
@@ -179,6 +180,9 @@ class PhysicsTests(unittest.TestCase):
         window = SimulationWindow(self.sim, Path(self.temp.name) / 'records')
         try:
             self.assertEqual(len(window.spins), 12)
+            for name, motor_id in zip(self.sim.names, self.sim.motor_ids):
+                label = window.findChild(QtWidgets.QLabel, name + '_motor_label')
+                self.assertTrue(label.text().startswith(f'ID {motor_id:02d} ·'))
             window.shoulder_targets()
             self.assertEqual(window.spins[0].value(), 90)
             self.assertEqual(window.spins[6].value(), 90)
@@ -203,6 +207,8 @@ class PhysicsTests(unittest.TestCase):
             with path.open() as stream:
                 rows = list(csv.DictReader(stream))
             self.assertEqual(len(rows), 12)
+            self.assertEqual({row['joint']: int(row['motor_id']) for row in rows},
+                             dict(zip(self.sim.names, self.sim.motor_ids)))
             self.assertIn('actuator_torque_nm', rows[0])
             self.assertNotIn('temperature_c', rows[0])
         finally:

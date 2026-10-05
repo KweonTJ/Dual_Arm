@@ -1,6 +1,6 @@
 # User-specified motor zero, 2026-10-04. Angle units are degrees, not encoder ticks.
 # At the modeled neutral pose (URDF q=0 rad), every motor reads 180 degrees.
-# Joint direction signs, motor IDs and hardware travel limits remain uncalibrated.
+# Joint direction signs and hardware travel limits remain uncalibrated.
 urdf_zero_radians: 0.0
 motor_zero_degrees: 180.0
 joints:
@@ -16,3 +16,19 @@ joints:
   - right_wrist_roll_joint
   - right_inner_finger_joint
   - right_outer_finger_joint
+# User-provided motor IDs, 2026-10-05. Left/right are relative to the robot.
+# Display metadata mirrors dual_arm_hardware/config/hardware.yaml (validated together).
+# In a front view: right arm is screen-left, left arm is screen-right. ID 11 unused.
+motor_ids:
+  left_shoulder_pitch_joint: 10
+  left_shoulder_roll_joint: 9
+  left_elbow_pitch_joint: 8
+  left_wrist_roll_joint: 7
+  left_inner_finger_joint: 13
+  left_outer_finger_joint: 6
+  right_shoulder_pitch_joint: 5
+  right_shoulder_roll_joint: 4
+  right_elbow_pitch_joint: 3
+  right_wrist_roll_joint: 2
+  right_inner_finger_joint: 12
+  right_outer_finger_joint: 1

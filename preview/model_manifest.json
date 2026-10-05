@@ -1,5 +1,5 @@
 {
-  "model_revision": "df90485770",
+  "model_revision": "f73c516e17",
   "preview": "/home/ktj/Dual_Arm/preview/01_\uc591\ud314_\uc804\uccb4.png",
   "motor_calibration": {
     "urdf_zero_radians": 0.0,
@@ -17,7 +17,21 @@
       "right_wrist_roll_joint",
       "right_inner_finger_joint",
       "right_outer_finger_joint"
-    ]
+    ],
+    "motor_ids": {
+      "left_shoulder_pitch_joint": 10,
+      "left_shoulder_roll_joint": 9,
+      "left_elbow_pitch_joint": 8,
+      "left_wrist_roll_joint": 7,
+      "left_inner_finger_joint": 13,
+      "left_outer_finger_joint": 6,
+      "right_shoulder_pitch_joint": 5,
+      "right_shoulder_roll_joint": 4,
+      "right_elbow_pitch_joint": 3,
+      "right_wrist_roll_joint": 2,
+      "right_inner_finger_joint": 12,
+      "right_outer_finger_joint": 1
+    }
   },
   "urdf_sha256": "01693a48de5d5f143957849bb9e0e213464bc368b2e39a05fd8f204dcc6f8e59",
   "mesh_sha256": {

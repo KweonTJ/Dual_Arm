@@ -58,6 +58,11 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
     if any(v < 0 for v in config['contact_friction']):
         raise ValueError('Negative friction')
     profiles = controller_settings(config, [j.get('name') for j in urdf.findall("joint[@type='revolute']")])
+    calibration = yaml.safe_load((description_dir / 'config/motor_calibration.yaml').read_text())
+    motor_ids = calibration['motor_ids']
+    if (set(motor_ids) != set(profiles) or len(set(motor_ids.values())) != len(profiles)
+            or any(type(value) is not int or not 0 <= value <= 253 for value in motor_ids.values())):
+        raise ValueError('Motor IDs must cover each robot joint exactly once with unique IDs in 0..253')
     for mesh in urdf.findall('.//mesh'):
         prefix = 'package://dual_arm_description/'
         filename = mesh.get('filename')
@@ -129,7 +134,7 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
         ET.SubElement(actuators, 'motor', name=name + '_servo', joint=name, gear='1',
                       ctrllimited='true', ctrlrange=f'{-effort} {effort}',
                       forcelimited='true', forcerange=f'{-effort} {effort}')
-        joints.append({'name': name, 'lower': lower, 'upper': upper, 'effort': effort,
+        joints.append({'name': name, 'motor_id': motor_ids[name], 'lower': lower, 'upper': upper, 'effort': effort,
                        'urdf_effort': urdf_effort, 'controller': profiles[name]})
     target = output_dir / 'dual_arm_scene.xml'
     ET.indent(scene)
@@ -149,6 +154,8 @@ class Simulation:
         self.data = mujoco.MjData(self.model)
         self.manifest = manifest
         self.names = [j['name'] for j in manifest['joints']]
+        # Bus IDs are labels; self.ids below remains MuJoCo's internal joint indices.
+        self.motor_ids = [j['motor_id'] for j in manifest['joints']]
         self.ids = np.array([self.model.joint(n).id for n in self.names])
         self.qindices = self.model.jnt_qposadr[self.ids]
         self.vindices = self.model.jnt_dofadr[self.ids]

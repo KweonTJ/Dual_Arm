@@ -8,16 +8,19 @@ torque_limit_percent: null
 # +1: increasing raw position increases the corresponding URDF joint angle.
 # -1: increasing raw position decreases the URDF joint angle.
 # Neutral angles come from dual_arm_description/config/motor_calibration.yaml (180 deg).
+# IDs from the user's annotated front view (2026-10-05). Left/right are robot-relative.
+# Right arm appears on the left of the front image. ID 11 is unused.
+# Keep IDs in sync with motor_calibration.yaml; validate_model.py checks both files.
 motors:
-  left_shoulder_pitch_joint: {id: null, direction: null}
-  left_shoulder_roll_joint: {id: null, direction: null}
-  left_elbow_pitch_joint: {id: null, direction: null}
-  left_wrist_roll_joint: {id: null, direction: null}
-  left_inner_finger_joint: {id: null, direction: null}
-  left_outer_finger_joint: {id: null, direction: null}
-  right_shoulder_pitch_joint: {id: null, direction: null}
-  right_shoulder_roll_joint: {id: null, direction: null}
-  right_elbow_pitch_joint: {id: null, direction: null}
-  right_wrist_roll_joint: {id: null, direction: null}
-  right_inner_finger_joint: {id: null, direction: null}
-  right_outer_finger_joint: {id: null, direction: null}
+  left_shoulder_pitch_joint: {id: 10, direction: null}
+  left_shoulder_roll_joint: {id: 9, direction: null}
+  left_elbow_pitch_joint: {id: 8, direction: null}
+  left_wrist_roll_joint: {id: 7, direction: null}
+  left_inner_finger_joint: {id: 13, direction: null}
+  left_outer_finger_joint: {id: 6, direction: null}
+  right_shoulder_pitch_joint: {id: 5, direction: null}
+  right_shoulder_roll_joint: {id: 4, direction: null}
+  right_elbow_pitch_joint: {id: 3, direction: null}
+  right_wrist_roll_joint: {id: 2, direction: null}
+  right_inner_finger_joint: {id: 12, direction: null}
+  right_outer_finger_joint: {id: 1, direction: null}

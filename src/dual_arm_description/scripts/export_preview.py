@@ -94,6 +94,30 @@ def fk(model, positions=None):
     return frames
 
 
+def attach_motor_ids(model, motor_ids):
+    """Associate each bus ID with its joint and the actual servo casing for labels."""
+    moving = [j for j in model['joints'] if j['type'] != 'fixed']
+    if (set(motor_ids) != {j['name'] for j in moving}
+            or len(set(motor_ids.values())) != len(moving)
+            or any(type(value) is not int or not 0 <= value <= 253 for value in motor_ids.values())):
+        raise ValueError('Motor IDs must be unique and cover exactly the moving joints')
+    for joint in moving:
+        joint['motor_id'] = motor_ids[joint['name']]
+    model['motor_labels'] = []
+    for side in ('left', 'right'):
+        # Servo casings can belong to the parent of the joint they drive.
+        locations = [('shoulder_pitch', 'mount', 0), ('shoulder_roll', 'shoulder', 0),
+                     ('elbow_pitch', 'forearm', 0), ('wrist_roll', 'forearm', 1),
+                     ('inner_finger', 'palm', 0 if side == 'left' else 1),
+                     ('outer_finger', 'palm', 1 if side == 'left' else 0)]
+        for role, body, index in locations:
+            name, link = f'{side}_{role}_joint', f'{side}_{body}_link'
+            cases = [v for v in model['links'][link] if v['mesh'] == 'ax12a_case.stl']
+            center = np.array(cases[index]['matrix']) @ np.array([0, 0, -.013, 1])
+            model['motor_labels'].append({'joint': name, 'motor_id': motor_ids[name],
+                                          'link': link, 'xyz': center[:3].tolist()})
+
+
 def world_triangles(model, positions=None):
     frames = fk(model, positions)
     faces, colors = [], []
@@ -155,6 +179,18 @@ def render(model, output, revision, motor_zero):
         # Older matplotlib normalizes array input in-place; preserve bounds for view 2.
         ax.set_box_aspect(tuple(span)); ax.set_axis_off()
         ax.text2D(.07,.96,title,transform=ax.transAxes,fontsize=11,color='#607386',weight='bold')
+        if i == 0:
+            ax.computed_zorder = False
+            for label in model['motor_labels']:
+                position = frames[label['link']] @ np.array([*label['xyz'], 1])
+                ax.text(*position[:3], str(label['motor_id']), ha='center', va='center',
+                        fontsize=12, weight='bold', color='#ffe0a3', zorder=100,
+                        bbox=dict(boxstyle='round,pad=.18', facecolor='#172a3a', edgecolor='#ffe0a3', linewidth=.6))
+            for side in ('right', 'left'):
+                position = frames[f'{side}_upper_arm_link'][:3, 3].copy()
+                position[2] += .042
+                ax.text(*position, 'ROBOT ' + side.upper(), ha='center', fontsize=9,
+                        color='#52667d', weight='bold', zorder=100)
     fig.text(.045,.076,f'Shoulder to elbow: {arm_length:g} mm  |  Inner finger: {finger_lengths[0]:g} mm  |  Outer finger: {finger_lengths[1]:g} mm',fontsize=12,color='#24354a')
     fig.text(.045,.048,f'12 AX-12A  /  motors + pipe: black  /  brackets: gray  /  URDF neutral: 0 rad = motor zero: {motor_zero:g} deg',fontsize=10,color='#687789')
     fig.text(.045,.021,'Model: '+revision+'  |  Updated: '+datetime.now().astimezone().isoformat(timespec='seconds'),fontsize=9,color='#687789')
@@ -272,6 +308,7 @@ def main():
     args.output.mkdir(parents=True,exist_ok=True)
     model = load_model(PACKAGE/'urdf/dual_arm.urdf')
     calibration = yaml.safe_load((PACKAGE/'config/motor_calibration.yaml').read_text())
+    attach_motor_ids(model, calibration['motor_ids'])
     motor_zero = calibration['motor_zero_degrees']
     revision=hashlib.sha256(json.dumps(model,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:10]
     preview_path = args.output/'01_양팔_전체.png'

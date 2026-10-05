@@ -4,7 +4,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 import numpy as np
 import yaml
-from export_preview import load_model, fk, stl, PACKAGE
+from export_preview import load_model, fk, stl, PACKAGE, attach_motor_ids
 from mesh_geometry import surface_report
 
 
@@ -27,9 +27,20 @@ def main():
     assert calibration['urdf_zero_radians'] == 0.0
     assert len(calibration['joints']) == 12
     assert set(calibration['joints']) == {j.get('name') for j in moving}
+    hardware = yaml.safe_load((PACKAGE.parent/'dual_arm_hardware/config/hardware.yaml').read_text())
+    assert calibration['motor_ids'] == {name: values['id'] for name, values in hardware['motors'].items()}
+    roles = ('shoulder_pitch', 'shoulder_roll', 'elbow_pitch', 'wrist_roll', 'inner_finger', 'outer_finger')
+    for side, ids in [('right', [5, 4, 3, 2, 12, 1]), ('left', [10, 9, 8, 7, 13, 6])]:
+        assert [calibration['motor_ids'][f'{side}_{role}_joint'] for role in roles] == ids
+    attach_motor_ids(model, calibration['motor_ids'])
     assert not root.findall('.//mimic'), 'Both physical finger motors must stay independent'
     frames = fk(model)
     assert set(frames) == set(model['links'])
+    motor_centers = {label['motor_id']: (frames[label['link']] @ np.array([*label['xyz'], 1]))[:3]
+                     for label in model['motor_labels']}
+    # Front image: +Y projects to the right. Check the hand pairs and shoulder pair.
+    assert motor_centers[1][1] < motor_centers[12][1] < 0 < motor_centers[13][1] < motor_centers[6][1]
+    assert motor_centers[4][1] < motor_centers[5][1] < 0 < motor_centers[10][1] < motor_centers[9][1]
     servo_count = sum(1 for m in root.findall('.//visual/geometry/mesh') if m.get('filename').endswith('/ax12a_case.stl'))
     assert servo_count == 12
     for asset, faces in model['meshes'].items():

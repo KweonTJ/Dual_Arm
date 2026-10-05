@@ -124,7 +124,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
         panel_layout = QtWidgets.QVBoxLayout(panel)
         content.addWidget(panel)
         self.spins, self.sliders, self.cells = [], [], []
-        for side, caption in (('left', '왼팔'), ('right', '오른팔')):
+        for side, caption in (('left', '왼팔 · 정면에서 오른쪽'), ('right', '오른팔 · 정면에서 왼쪽')):
             group = QtWidgets.QGroupBox(caption)
             grid = QtWidgets.QGridLayout(group)
             for col, text in enumerate(('관절', '목표 조작', '목표 °', '현재 °', '오차 °', '속도 °/s', '토크 / 상한 N·m', '상태')):
@@ -137,7 +137,9 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 caption = {'shoulder_pitch': '어깨 pitch', 'shoulder_roll': '어깨 roll',
                            'elbow_pitch': '팔꿈치', 'wrist_roll': '손목 roll',
                            'inner_finger': '집게 안쪽', 'outer_finger': '집게 바깥'}[part]
-                grid.addWidget(QtWidgets.QLabel(caption), row, 0)
+                label = QtWidgets.QLabel(f'ID {self.sim.motor_ids[index]:02d} · {caption}')
+                label.setObjectName(name + '_motor_label')
+                grid.addWidget(label, row, 0)
                 slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
                 slider.setRange(round(np.degrees(self.sim.lower[index]) * 10), round(np.degrees(self.sim.upper[index]) * 10))
                 slider.setMinimumWidth(95)
@@ -255,7 +257,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 path = self.log_dir / ('simulation_' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%fZ') + '.csv')
                 self.csv_file = path.open('x', newline='')
                 self.csv_writer = csv.writer(self.csv_file)
-                self.csv_writer.writerow(('sim_time_s', 'joint', 'target_deg', 'position_deg', 'velocity_deg_s',
+                self.csv_writer.writerow(('sim_time_s', 'joint', 'motor_id', 'target_deg', 'position_deg', 'velocity_deg_s',
                                           'actuator_torque_nm', 'torque_cap_nm', 'saturated', 'contacts', 'motor_enabled',
                                           'error_deg', 'bias_feedforward_nm', 'integral_torque_nm'))
                 self.last_csv_time = -1
@@ -303,7 +305,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
                             f'실시간 비율 {realtime:.2f}×  |  접촉점 {sample["contacts"]}개')
         if self.csv_writer and sample['time'] - self.last_csv_time >= .1:
             for i, name in enumerate(self.sim.names):
-                self.csv_writer.writerow((sample['time'], name, np.degrees(sample['target'][i]),
+                self.csv_writer.writerow((sample['time'], name, self.sim.motor_ids[i], np.degrees(sample['target'][i]),
                     np.degrees(sample['position'][i]), np.degrees(sample['velocity'][i]), sample['effort'][i],
                     self.sim.caps[i], bool(sample['saturated'][i]), sample['contacts'], self.sim.enabled,
                     np.degrees(sample['error'][i]), sample['feedforward'][i], sample['integral_torque'][i]))
