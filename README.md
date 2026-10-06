@@ -14,13 +14,13 @@ ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양�
 
 ## 바로 보기
 
-- `preview/dual_arm_viewer.html`: 브라우저에서 직접 열 수 있는 독립형 3D 뷰어. 인터넷이나 ROS 설치 없이 회전·확대, 관절 슬라이더, 기본/굽힘/집게 열기 자세를 사용할 수 있습니다.
-- `preview/01_양팔_전체.png`: 최신 URDF의 정면·입체 이미지입니다.
-- `preview/02_부품_형상_비교.png`: 도면에 따른 부품 세부 형상 수정 전후입니다.
-- `preview/03_집게_90도_회전_비교.png`: 아래쪽 집게 방향의 수정 전후 기록입니다.
-- `preview/04_표면_채움_비교.png`: 모터·프레임의 뚫려 보이던 면을 수정한 전후 비교입니다.
-- `preview/05_손목_손_단차_비교.png`: 사진을 기준으로 손목 본체와 두 모터로 된 손의 중심선 단차를 수정한 측면 비교입니다.
-- `src/dual_arm_description/urdf/dual_arm.urdf`: 이미 전개된 URDF입니다. 메시의 `package://dual_arm_description` 경로는 아래 빌드 후 ROS 패키지 검색 경로로 해석됩니다.
+- `preview/dual_arm_viewer.html`: 브라우저에서 직접 열 수 있는 독립형 3D 뷰어. 인터넷이나 ROS 설치 없이 회전·확대, 관절 슬라이더, 기본/굽힘/집게 열기 자세를 사용
+- `preview/01_양팔_전체.png`: 최신 URDF의 정면·입체 이미지
+- `preview/02_부품_형상_비교.png`: 도면에 따른 부품 세부 형상 수정 전후
+- `preview/03_집게_90도_회전_비교.png`: 아래쪽 집게 방향의 수정 전후 기록
+- `preview/04_표면_채움_비교.png`: 모터·프레임의 뚫려 보이던 면을 수정한 전후 비교
+- `preview/05_손목_손_단차_비교.png`: 사진을 기준으로 손목 본체와 두 모터로 된 손의 중심선 단차를 수정한 측면 비교
+- `src/dual_arm_description/urdf/dual_arm.urdf`: 이미 전개된 URDF입니다. 메시의 `package://dual_arm_description` 경로는 아래 빌드 후 ROS 패키지 검색 경로 해석
 
 ROS 2 Humble + RViz:
 

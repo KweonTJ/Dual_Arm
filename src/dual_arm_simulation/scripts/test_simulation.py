@@ -35,6 +35,7 @@ class PhysicsTests(unittest.TestCase):
         self.assertEqual(len(sim.names), 12)
         self.assertEqual(sim.model.nu, 12)
         self.assertEqual(sim.model.nq, 19)  # 12 hinges + test object's free joint.
+        self.assertEqual(sim.manifest['engine'], mujoco.__version__)
         self.assertEqual(sim.motor_ids, [10, 9, 8, 7, 13, 6, 5, 4, 3, 2, 12, 1])
         self.assertAlmostEqual(sum(sim.model.body_mass) - .025, 1.0912)
         for side in ('left', 'right'):
@@ -180,6 +181,7 @@ class PhysicsTests(unittest.TestCase):
         window = SimulationWindow(self.sim, Path(self.temp.name) / 'records')
         try:
             self.assertEqual(len(window.spins), 12)
+            self.assertIn(f'MuJoCo {mujoco.__version__}', window.windowTitle())
             for name, motor_id in zip(self.sim.names, self.sim.motor_ids):
                 label = window.findChild(QtWidgets.QLabel, name + '_motor_label')
                 self.assertTrue(label.text().startswith(f'ID {motor_id:02d} ·'))
@@ -193,6 +195,7 @@ class PhysicsTests(unittest.TestCase):
             window.bend_targets()
             self.sim.step(100)
             window.refresh()
+            self.assertIn(f'MuJoCo {mujoco.__version__}', window.status.text())
             self.assertTrue(window.viewport.pixmap() is not None)
             window.pause_button.setChecked(True)
             self.assertTrue(self.sim.paused)

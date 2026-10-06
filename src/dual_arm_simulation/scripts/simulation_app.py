@@ -73,7 +73,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.csv_file = None
         self.csv_writer = None
         self.last_csv_time = -1
-        self.setWindowTitle('Dual Arm — 디지털 트윈 물리 시뮬레이션')
+        self.setWindowTitle(f'Dual Arm — MuJoCo {mujoco.__version__} 디지털 트윈')
         self.resize(1580, 900)
         self.setStyleSheet('QMainWindow, QWidget { background: #f4f7fa; color: #1c3046; font-size: 13px; }'
                           'QPushButton { background: #e1e9f2; padding: 7px 12px; border: 1px solid #bbcbdc; border-radius: 5px; }'
@@ -82,10 +82,11 @@ class SimulationWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
         layout = QtWidgets.QVBoxLayout(central)
-        title = QtWidgets.QLabel('DUAL ARM  /  디지털 트윈 물리 시뮬레이션')
+        title = QtWidgets.QLabel('DUAL ARM  /  MuJoCo 디지털 트윈')
         title.setStyleSheet('font-size: 23px; font-weight: bold; padding: 5px;')
         layout.addWidget(title)
-        subtitle = QtWidgets.QLabel('SIMULATION · 중력 보상 + 관절별 PID · 토크 제한 적용 · 실기 연결 없음')
+        subtitle = QtWidgets.QLabel(
+            f'MuJoCo {mujoco.__version__} · 중력/관성/접촉 물리 · 관절별 PID · 토크 제한 · 실기 연결 없음')
         subtitle.setStyleSheet('color: #256e96; padding-left: 5px;')
         layout.addWidget(subtitle)
         controls = QtWidgets.QHBoxLayout()
@@ -301,7 +302,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 cell.setText(text)
             cells[-1].setStyleSheet('color: #b85d13; font-weight: bold;' if sample['saturated'][i] else '')
         state = self.sim.fault or ('일시정지' if self.sim.paused else '실행 중')
-        self.status.setText(f'{state}  |  시뮬레이션 {sample["time"]:.2f} s\n'
+        self.status.setText(f'{state}  |  MuJoCo {self.sim.manifest["engine"]}  |  시뮬레이션 {sample["time"]:.2f} s\n'
                             f'실시간 비율 {realtime:.2f}×  |  접촉점 {sample["contacts"]}개')
         if self.csv_writer and sample['time'] - self.last_csv_time >= .1:
             for i, name in enumerate(self.sim.names):
