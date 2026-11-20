@@ -44,9 +44,9 @@ def controller_settings(config, names):
 def build_scene(urdf_path, description_dir, config_path, output_dir):
     description_dir, output_dir = Path(description_dir).resolve(), Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    urdf_text = Path(urdf_path).read_text()
+    urdf_text = Path(urdf_path).read_text(encoding='utf-8')
     urdf = ET.fromstring(urdf_text)
-    config = yaml.safe_load(Path(config_path).read_text())
+    config = yaml.safe_load(Path(config_path).read_text(encoding='utf-8'))
     for key in ('timestep',):
         if not math.isfinite(config[key]) or config[key] <= 0:
             raise ValueError(f'{key} must be positive and finite')
@@ -57,8 +57,9 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
             raise ValueError(f'Invalid {key}')
     if any(v < 0 for v in config['contact_friction']):
         raise ValueError('Negative friction')
-    profiles = controller_settings(config, [j.get('name') for j in urdf.findall("joint[@type='revolute']")])
-    calibration = yaml.safe_load((description_dir / 'config/motor_calibration.yaml').read_text())
+    calibration = yaml.safe_load((description_dir / 'config/motor_calibration.yaml').read_text(encoding='utf-8'))
+    active_names = calibration['joints']
+    profiles = controller_settings(config, active_names)
     motor_ids = calibration['motor_ids']
     if (set(motor_ids) != set(profiles) or len(set(motor_ids.values())) != len(profiles)
             or any(type(value) is not int or not 0 <= value <= 253 for value in motor_ids.values())):
@@ -68,7 +69,7 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
         filename = mesh.get('filename')
         if not filename.startswith(prefix):
             raise ValueError(f'Unsupported mesh URI: {filename}')
-        mesh.set('filename', str(description_dir / filename[len(prefix):]))
+        mesh.set('filename', (description_dir / filename[len(prefix):]).as_posix())
     extra = ET.SubElement(urdf, 'mujoco')
     ET.SubElement(extra, 'compiler', discardvisual='false', fusestatic='false', strippath='false')
     imported = mujoco.MjModel.from_xml_string(ET.tostring(urdf, encoding='unicode'))
@@ -97,14 +98,7 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
                   diffuse='.45 .45 .45', specular='.1 .1 .1')
     ET.SubElement(world, 'geom', name='floor', type='plane', size='1 1 .01', group='2',
                   material='floor_material', friction=' '.join(map(str, config['contact_friction'])))
-    # A fixed support represents the bench fixture; robot crossbar remains unchanged.
-    crossbar = world.find(".//body[@name='crossbar_link']")
-    mount_bottom = float(crossbar.get('pos').split()[2]) - .01
-    ET.SubElement(world, 'geom', name='fixture', type='box', group='2',
-                  pos=f'0 0 {mount_bottom / 2}', size=f'.016 .020 {mount_bottom / 2}',
-                  rgba='.28 .32 .36 1')
-    ET.SubElement(world, 'geom', name='fixture_base', type='box', group='2',
-                  pos='0 0 .008', size='.065 .06 .008', rgba='.28 .32 .36 1')
+    # The torso remains fixed to the world. Do not model the photographed bench stand.
     # A free object makes gravity/contact observable without changing robot geometry.
     block = ET.SubElement(world, 'body', name='test_block', pos='.13 0 .06')
     ET.SubElement(block, 'freejoint', name='test_block_free')
@@ -120,6 +114,8 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
     joints = []
     for source in urdf.findall("joint[@type='revolute']"):
         name = source.get('name')
+        if name not in profiles:
+            continue  # Closed-loop follower rods are passive, not extra motors.
         limit = source.find('limit')
         lower, upper, urdf_effort = (float(limit.get(k)) for k in ('lower', 'upper', 'effort'))
         if not all(math.isfinite(x) for x in (lower, upper, urdf_effort)) or lower >= upper or urdf_effort <= 0:
@@ -136,6 +132,19 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
                       forcelimited='true', forcerange=f'{-effort} {effort}')
         joints.append({'name': name, 'motor_id': motor_ids[name], 'lower': lower, 'upper': upper, 'effort': effort,
                        'urdf_effort': urdf_effort, 'controller': profiles[name]})
+    equality = ET.SubElement(scene,'equality')
+    contact = ET.SubElement(scene,'contact')
+    for side in ('left','right'):
+        for tag,sign in (('a',1),('b',-1)):
+            rod = world.find(f".//body[@name='{side}_rod_{tag}_link']")
+            jaw = world.find(f".//body[@name='{side}_jaw_{tag}_link']")
+            ET.SubElement(rod,'site',name=f'{side}_rod_{tag}_pin',pos='.035 0 0',size='.001',rgba='0 0 0 0')
+            ET.SubElement(jaw,'site',name=f'{side}_jaw_{tag}_pin',pos=f'{sign*.0186} 0 .010',size='.001',rgba='0 0 0 0')
+            ET.SubElement(equality,'connect',name=f'{side}_loop_{tag}',
+                site1=f'{side}_rod_{tag}_pin',site2=f'{side}_jaw_{tag}_pin',solref='.003 1',solimp='.99 .999 .0001')
+            # Carriage and guide are connected mechanically; guide contact is
+            # already represented by its prismatic joint, not a box collision.
+            ET.SubElement(contact,'exclude',body1=f'{side}_palm_link',body2=f'{side}_jaw_{tag}_link')
     target = output_dir / 'dual_arm_scene.xml'
     ET.indent(scene)
     ET.ElementTree(scene).write(target, encoding='utf-8', xml_declaration=True)
@@ -144,7 +153,7 @@ def build_scene(urdf_path, description_dir, config_path, output_dir):
                 'controller_sha256': hashlib.sha256(Path(config_path).read_bytes()).hexdigest(),
                 'joints': joints, 'config': config,
                 'limitations': 'Simulation-only caps and bias-compensated PID; not calibrated hardware torque or servo dynamics.'}
-    (output_dir / 'model_manifest.json').write_text(json.dumps(manifest, indent=2))
+    (output_dir / 'model_manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     return target, manifest
 
 

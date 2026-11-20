@@ -23,15 +23,13 @@ joint_limits:
     max_position_deg: 67.5
     max_velocity_deg_s: 20.0
     max_effort_nm: 0.30
-  left_inner_finger_joint: &finger
+  left_gripper_joint: &gripper
     min_position_deg: 0.0
-    max_position_deg: 30.0
+    max_position_deg: 47.87446472932428 # CAD 70 mm inner jaw gap, 35 mm per slider.
     max_velocity_deg_s: 30.0
     max_effort_nm: 0.30
-  left_outer_finger_joint: *finger
   right_shoulder_pitch_joint: *shoulder_pitch
   right_shoulder_roll_joint: *shoulder_roll
   right_elbow_pitch_joint: *elbow_pitch
   right_wrist_roll_joint: *wrist_roll
-  right_inner_finger_joint: *finger
-  right_outer_finger_joint: *finger
+  right_gripper_joint: *gripper

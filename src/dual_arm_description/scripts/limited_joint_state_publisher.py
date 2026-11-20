@@ -8,6 +8,7 @@ from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
 from sensor_msgs.msg import JointState
 from preview_limits import PreviewLimiter, read_limits
+from gripper_kinematics import expand_positions
 
 
 class LimitedJointStatePublisher(Node):
@@ -30,7 +31,7 @@ class LimitedJointStatePublisher(Node):
             self.get_logger().warning('Clamped preview targets: '+', '.join(clamped), throttle_duration_sec=2.0)
 
     def tick(self):
-        positions = self.limiter.step(time.monotonic())
+        positions = expand_positions(self.limiter.step(time.monotonic()))
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name = list(positions)

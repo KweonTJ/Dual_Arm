@@ -1,0 +1,16 @@
+﻿ID,FinishedSTEP,InventorInput,Volume_mm3,Type,Qty_both_hands
+C02_WristShoe,Parts/C02_WristShoe.step,InventorData/C02_WristShoe_Blank.step,11171.468629,Printed,2
+C03_CenteredCradle,Parts/C03_CenteredCradle.step,InventorData/C03_CenteredCradle_Blank.step,27714.029047,Printed,2
+C04_RailBracket155,Parts/C04_RailBracket155.step,Parts/C04_RailBracket155.step,7939.679677,SUS304,2
+REF_Rail145,Reference/REF_Rail145.step,Reference/REF_Rail145.step,6350.083035,Purchased_envelope,2
+C05_JawA,Parts/C05_JawA.step,Parts/C05_JawA.step,23267.817085,Printed,2
+C06_JawB,Parts/C06_JawB.step,Parts/C06_JawB.step,23262.866148,Printed,2
+F01_FixedAdapter,Parts/F01_FixedAdapter.step,InventorData/F01_FixedAdapter_Blank.step,15305.10361,PETG,2
+F02_HornAdapter,Parts/F02_HornAdapter.step,InventorData/F02_HornAdapter_Blank.step,5990.28999,PETG,2
+REF_AX12A_Case,Reference/REF_AX12A_Case.step,Reference/REF_AX12A_Case.step,40743.47238,ROBOTIS_REFERENCE,2
+REF_B01_Horn,Reference/REF_B01_Horn.step,Reference/REF_B01_Horn.step,1188.44305,ROBOTIS_REFERENCE,4
+OA_Rotor,Parts/OA_Rotor.step,Parts/OA_Rotor.step,12210.30895,Al6061,2
+OA_Link,Parts/OA_Link.step,Parts/OA_Link.step,1393.66079,Al6061,4
+REF_Bearing,Reference/REF_Bearing.step,Reference/REF_Bearing.step,339.29201,CATALOG_ENVELOPE,8
+REF_Block,Reference/REF_Block.step,Reference/REF_Block.step,3714.51989,CATALOG_ENVELOPE,4
+OA_CarriagePlate,Parts/OA_CarriagePlate.step,Parts/OA_CarriagePlate.step,6470.03530,Al6061,4

@@ -17,7 +17,8 @@ def setup(context):
     xml = xacro.process_file(str(description/'urdf/dual_arm.urdf.xacro')).toxml()
     driver = Node(package='dual_arm_hardware', executable='hardware_node.py', output='screen',
                   parameters=[{'hardware_config': LaunchConfiguration('hardware_config').perform(context),
-                               'description_config': str(description/'config')}])
+                               'description_config': str(description/'config'),
+                               'loop_config': LaunchConfiguration('loop_config').perform(context)}])
     return [
         RegisterEventHandler(OnProcessExit(target_action=driver,
             on_exit=[EmitEvent(event=Shutdown(reason='Hardware driver exited; stopping the hardware launch'))])),
@@ -33,6 +34,7 @@ def generate_launch_description():
     share = Path(get_package_share_directory('dual_arm_hardware'))
     return LaunchDescription([
         DeclareLaunchArgument('hardware_config', default_value=str(share/'config/hardware.yaml')),
+        DeclareLaunchArgument('loop_config', default_value=str(share/'config/lowlevel.yaml')),
         DeclareLaunchArgument('rviz', default_value='true'),
         OpaqueFunction(function=setup),
     ])

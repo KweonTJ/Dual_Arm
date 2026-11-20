@@ -13,7 +13,7 @@ class MonitorTests(unittest.TestCase):
         text = MonitorView().render(0)
         self.assertIn('WAITING', text)
         self.assertNotIn('11.1', text)
-        self.assertEqual(text.count('WAIT\n'), 12)
+        self.assertEqual(text.count('WAIT\n'), 10)
 
     def test_fresh_then_stale_and_recovery(self):
         view = MonitorView(2)
@@ -54,7 +54,7 @@ class MonitorTests(unittest.TestCase):
         view = MonitorView()
         view.update(demo_records(), 0)
         view.update(demo_records()[:-1], 1)
-        row = next(line for line in view.render(1).splitlines() if line.startswith('R.outer_finger'))
+        row = next(line for line in view.render(1).splitlines() if line.startswith('R.gripper'))
         self.assertIn('NO DATA', row)
         self.assertNotIn('11.1', row)
 
@@ -81,11 +81,11 @@ class MonitorTests(unittest.TestCase):
             recorder.close()
             with path.open(encoding='utf-8-sig') as stream:
                 rows = list(csv.DictReader(stream))
-            self.assertEqual(len(rows), 26)
+            self.assertEqual(len(rows), 22)
             self.assertEqual(rows[1]['voltage_v'], '11.1')
-            self.assertEqual(rows[14]['voltage_v'], '')
-            self.assertEqual(rows[14]['level'], '2')
-            self.assertEqual(rows[14]['ros_stamp'], '43.000000001')
+            self.assertEqual(rows[12]['voltage_v'], '')
+            self.assertEqual(rows[12]['level'], '2')
+            self.assertEqual(rows[12]['ros_stamp'], '43.000000001')
             with self.assertRaises(FileExistsError):
                 CsvRecorder(path)
 

@@ -1,0 +1,15 @@
+Enactic, OpenArm hardware v1.0.1, Copyright 2025 Enactic, Inc.
+Source commit 0403835afae64949ede85e440e86a283b747b9dd
+https://github.com/enactic/openarm_hardware/tree/0403835afae64949ede85e440e86a283b747b9dd
+https://docs.openarm.dev/1.0/hardware/assembly-guide/gripper-sub-assembly/
+See OpenArm_1.0.1/LICENSE.txt for CERN-OHL-S-2.0.
+The centered adapters, shortened jaw derivatives and revised rail bracket in this package are provided under CERN-OHL-S-2.0. Modified on 2026-11-18. The source hand uses the OpenArm 1.x Follower linkage. Reference motor and purchased components retain their respective notices.
+ROBOTIS AX-12A mechanical references
+https://en.robotis.com/service/download.php?no=99
+https://e-shop.robotis.co.jp/uploads/Items/dynamixel_ax/brochure_DYNAMIXEL_AX-12A.pdf
+https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/
+The AX body and B01 horn are assembly reference solids. The guide, carriage block and bearings are interface envelopes. The 145 mm rail-hole pattern is a design assumption for the order drawing. The catalog 155 mm rail is supplied as the original comparison only.
+Robot integration geometry
+https://github.com/KweonTJ/Dual_Arm
+https://github.com/KweonTJ/ORV_4WD
+CAD/centered_hand.py uses CadQuery 2.7 and numpy. parts() returns individual solids, state(gap_mm) gives rigid transforms in the existing wrist frame and shapes(gap_mm) places the assembly. Centering, mounting patterns and the stroke are implemented in these functions. STEP files in Parts/ and Reference/ are the kept inputs for the unchanged components. CAD/Baseline/Parts contains both source jaw solids in the legacy local frame.

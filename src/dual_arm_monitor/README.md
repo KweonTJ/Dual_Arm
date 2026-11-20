@@ -2,7 +2,7 @@
 
 **가상 로봇을 조작하며 물리 상태를 보는 디지털 트윈 화면은 `./monitor.sh --sim` 또는 `./simulation.sh`로 실행합니다.** [시뮬레이션 사용법](../dual_arm_simulation/README.md)을 참고하세요. 아래 내용은 별도의 실기 진단 모니터입니다.
 
-`dual_arm_hardware`가 발행하는 `/dual_arm/diagnostics`를 받아 12개 모터 상태를 터미널에 표시합니다. 모니터는 시리얼 포트를 열거나, 명령을 발행하거나, 토크 서비스를 호출하지 않습니다. 모니터를 종료해도 구동기는 계속 실행됩니다.
+`dual_arm_hardware`가 발행하는 `/dual_arm/diagnostics`를 받아 10개 모터 상태를 터미널에 표시합니다. 모니터는 시리얼 포트를 열거나, 명령을 발행하거나, 토크 서비스를 호출하지 않습니다. 모니터를 종료해도 구동기는 계속 실행됩니다.
 
 워크스페이스에서 별도 터미널로 실행합니다.
 
@@ -13,7 +13,7 @@
 ./monitor.sh --demo                # 장치/ROS 연결 없이 예시 화면만 출력
 ```
 
-실기 구동은 기존 `./hardware.sh run`으로 별도로 시작합니다. `src/dual_arm_hardware/config/hardware.yaml`의 실제 포트·baudrate·12개 ID/방향·토크 제한 비율과 SDK/pyserial 준비가 필요합니다. 모니터만 실행하면 `WAITING`이 표시됩니다. `display.sh`의 RViz 프리뷰는 실기 진단 토픽을 발행하지 않습니다. 두 터미널의 `ROS_DOMAIN_ID`가 같아야 합니다.
+실기 구동은 기존 `./hardware.sh run`으로 별도로 시작합니다. `src/dual_arm_hardware/config/hardware.yaml`의 실제 포트·baudrate·10개 ID/방향·토크 제한 비율과 SDK/pyserial 준비가 필요합니다. 모니터만 실행하면 `WAITING`이 표시됩니다. `display.sh`의 RViz 프리뷰는 실기 진단 토픽을 발행하지 않습니다. 두 터미널의 `ROS_DOMAIN_ID`가 같아야 합니다.
 
 ## 표시 값
 
@@ -31,7 +31,7 @@ Goal은 모터에 남아 있는 목표 레지스터 값입니다. **토크 OFF �
 
 ## 수신 및 오류 처리
 
-구동기는 기존 보호 레지스터 검사 후 각 모터의 주소 24–46을 한 패킷으로 읽습니다. `diagnostic_msgs/msg/DiagnosticArray`에 `dual_arm/system` 및 관절별 상태 12개를 발행합니다. 기본 폴링 목표는 5Hz이며 실제 주기는 baudrate·반환 지연·버스 상태에 따라 길어질 수 있습니다. 12개 모터 값은 순차 수집되며 같은 순간의 동시 측정이 아닙니다.
+구동기는 기존 보호 레지스터 검사 후 각 모터의 주소 24–46을 한 패킷으로 읽습니다. `diagnostic_msgs/msg/DiagnosticArray`에 `dual_arm/system` 및 관절별 상태 10개를 발행합니다. 기본 폴링 목표는 5Hz이며 실제 주기는 baudrate·반환 지연·버스 상태에 따라 길어질 수 있습니다. 10개 모터 값은 순차 수집되며 같은 순간의 동시 측정이 아닙니다.
 
 모든 읽기가 성공한 프레임만 유효 데이터로 표시합니다. 통신/상태 오류 또는 보호값 불일치가 발생하면 기존 정지 경로를 실행하고 오류를 계속 발행합니다. 오류 이후 측정값은 비워 두며, 토크 OFF가 확인되지 않은 모터는 별도로 표시합니다. 재시작 전 자동 복구/재활성화는 없습니다. Status는 구동기 통신·검사 결과이며 별도의 실측 토크 판정이 아닙니다.
 

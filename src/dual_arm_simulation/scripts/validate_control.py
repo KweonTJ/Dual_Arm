@@ -13,15 +13,15 @@ def validate(urdf, description, config, output):
     scene, manifest = build_scene(urdf, description, config, output / 'model')
     sim = Simulation(scene, manifest)
     poses = {
-        'neutral': [0] * 12,
-        'shoulder_pitch_90': [90, 0, 0, 0, 0, 0] * 2,
-        'shoulder_roll_90': [0, 90, 0, 0, 0, 0] * 2,
-        'elbow_90': [0, 0, 90, 0, 0, 0] * 2,
-        'wrist_positive': [0, 0, 0, 67.5, 0, 0] * 2,
-        'wrist_negative': [0, 0, 0, -67.5, 0, 0] * 2,
-        'fingers_open': [0, 0, 0, 0, 30, 30] * 2,
-        'combined': [70, 45, 70, 40, 15, 15] * 2,
-        'asymmetric': [60, 30, 45, -45, 10, 20, 30, 60, 70, 50, 25, 5],
+        'neutral': [0] * 10,
+        'shoulder_pitch_90': [90, 0, 0, 0, 0] * 2,
+        'shoulder_roll_90': [0, 90, 0, 0, 0] * 2,
+        'elbow_90': [0, 0, 90, 0, 0] * 2,
+        'wrist_positive': [0, 0, 0, 67.5, 0] * 2,
+        'wrist_negative': [0, 0, 0, -67.5, 0] * 2,
+        'grippers_open': [0, 0, 0, 0, 47.87446472932428] * 2,
+        'combined': [70, 45, 70, 40, 15] * 2,
+        'asymmetric': [60, 30, 45, -45, 20, 30, 60, 70, 50, 25],
         'all_upper': np.degrees(sim.upper).tolist(),
         'all_lower': np.degrees(sim.lower).tolist(),
     }
@@ -32,7 +32,7 @@ def validate(urdf, description, config, output):
     for name, target in poses.items():
         sim.reset()
         sim.set_targets(np.radians(target))
-        peak = np.zeros(12)
+        peak = np.zeros(10)
         overshoot = 0.
         for _ in range(600):
             sim.step(10)

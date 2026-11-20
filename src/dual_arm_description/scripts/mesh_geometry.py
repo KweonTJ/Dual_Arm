@@ -22,7 +22,7 @@ def signed_volume(mesh):
                           np.cross(relative[:, 1], relative[:, 2])).sum() / 6)
 
 
-def orient_solid(mesh):
+def orient_solid(mesh, min_area=1e-12):
     """Require closed shells, make neighbours consistent, then orient outward.
 
     Each input is a solid primitive; assembled pieces may touch or overlap.
@@ -30,7 +30,7 @@ def orient_solid(mesh):
     """
     mesh = np.array(mesh, dtype=float, copy=True)
     area = np.linalg.norm(np.cross(mesh[:, 1] - mesh[:, 0], mesh[:, 2] - mesh[:, 0]), axis=1)
-    mesh = mesh[area > 1e-12]
+    mesh = mesh[area > min_area]
     inverse, counts, directions = edge_topology(mesh)
     if not len(mesh) or np.any(counts != 2):
         raise ValueError(f'Open/non-manifold primitive: {np.count_nonzero(counts != 2)} edges')

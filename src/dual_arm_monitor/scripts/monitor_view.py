@@ -6,7 +6,7 @@ from pathlib import Path
 
 JOINTS = tuple(f'{side}_{part}_joint' for side in ('left', 'right') for part in
                ('shoulder_pitch', 'shoulder_roll', 'elbow_pitch', 'wrist_roll',
-                'inner_finger', 'outer_finger'))
+                'gripper'))
 FIELDS = ('motor_id', 'position_deg', 'goal_deg', 'error_deg', 'velocity_deg_s',
           'load_percent', 'voltage_v', 'temperature_c', 'torque_enabled',
           'torque_limit_percent', 'moving', 'position_raw', 'motor_position_deg',

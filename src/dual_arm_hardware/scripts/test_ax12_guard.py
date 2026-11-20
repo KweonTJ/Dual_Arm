@@ -124,7 +124,7 @@ class HardwareProtectionTests(unittest.TestCase):
         for address, value in [(RETURN_LEVEL, 1), (REGISTERED, 1), (TORQUE_LIMIT, 0),
                                (MAX_TORQUE, 0), (LOCK, 1), (PRESENT, 0)]:
             bus = FakeBus(self.motors)
-            bus.registers[12][address] = value
+            bus.registers[10][address] = value
             with self.assertRaises(ProtectionError): ProtectedArm(bus, self.motors).prepare(apply=True)
             self.assertEqual(bus.writes(), [])
         self.bus.registers[1][CCW] = 0
@@ -173,7 +173,7 @@ class HardwareProtectionTests(unittest.TestCase):
         self.arm.enable()
         writes = self.bus.writes()
         first_enable = next(i for i,e in enumerate(writes) if e[2]==TORQUE_ENABLE)
-        self.assertEqual({e[1] for e in writes[:first_enable] if e[2]==GOAL}, set(range(1,13)))
+        self.assertEqual({e[1] for e in writes[:first_enable] if e[2]==GOAL}, set(range(1,11)))
         for m in self.motors:
             self.assertEqual(self.bus.registers[m.id][GOAL], self.bus.registers[m.id][PRESENT])
             self.assertEqual(self.bus.registers[m.id][TORQUE_ENABLE], 1)
@@ -191,15 +191,15 @@ class HardwareProtectionTests(unittest.TestCase):
         self.configured(enabled=True)
         names = [m.joint for m in self.motors]
         for value in (math.nan, math.inf, 100.0):
-            with self.assertRaises(ProtectionError): self.arm.command(names, [0.0]*11+[value])
-        with self.assertRaises(ProtectionError): self.arm.command(names[:-1], [0.0]*11)
-        with self.assertRaises(ProtectionError): self.arm.command(names[:-1]+[names[0]], [0.0]*12)
+            with self.assertRaises(ProtectionError): self.arm.command(names, [0.0]*9+[value])
+        with self.assertRaises(ProtectionError): self.arm.command(names[:-1], [0.0]*9)
+        with self.assertRaises(ProtectionError): self.arm.command(names[:-1]+[names[0]], [0.0]*10)
         self.assertEqual(self.bus.writes(), [])
 
     def test_changed_cap_stops_without_sending_goals(self):
         self.configured(enabled=True)
-        self.bus.registers[12][TORQUE_LIMIT] = 1023
-        with self.assertRaises(ProtectionError): self.arm.command([m.joint for m in self.motors], [0.0]*12)
+        self.bus.registers[10][TORQUE_LIMIT] = 1023
+        with self.assertRaises(ProtectionError): self.arm.command([m.joint for m in self.motors], [0.0]*10)
         self.assertFalse(any(e[2]==GOAL for e in self.bus.writes()))
         self.assertTrue(self.arm.fault)
         self.assertTrue(all(r[TORQUE_ENABLE]==0 for r in self.bus.registers.values()))
@@ -219,13 +219,13 @@ class HardwareProtectionTests(unittest.TestCase):
         self.bus.registers[1].update({CW: 600, CCW: 650})
         self.configured(enabled=True)
         with self.assertRaises(ProtectionError):
-            self.arm.command([m.joint for m in self.motors], [self.motors[0].q_upper]+[0.0]*11)
+            self.arm.command([m.joint for m in self.motors], [self.motors[0].q_upper]+[0.0]*9)
         self.assertEqual(self.bus.writes(), [])
 
     def test_device_restart_is_not_automatically_reenabled(self):
         self.configured(enabled=True)
         self.bus.registers[1][TORQUE_ENABLE] = 0
-        with self.assertRaises(ProtectionError): self.arm.command([m.joint for m in self.motors], [0.0]*12)
+        with self.assertRaises(ProtectionError): self.arm.command([m.joint for m in self.motors], [0.0]*10)
         self.assertTrue(self.arm.fault)
         self.assertFalse(any(e[2]==TORQUE_ENABLE and e[3]==1 for e in self.bus.writes()))
 
@@ -234,7 +234,7 @@ class HardwareProtectionTests(unittest.TestCase):
         self.bus.fail_read_id = 1
         errors = self.arm.stop(fault=True)
         off_ids = {e[1] for e in self.bus.writes() if e[2:]==(TORQUE_ENABLE,0)}
-        self.assertEqual(off_ids, set(range(1,13)))
+        self.assertEqual(off_ids, set(range(1,11)))
         self.assertEqual(len(errors), 1)
         self.assertIn('ID 1', errors[0])
 

@@ -11,13 +11,19 @@ hardware_config="${1:-$PWD/src/dual_arm_hardware/config/hardware.yaml}"
 source /opt/ros/humble/setup.bash
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$PWD/log/hardware_ros}"
 export PYTHONNOUSERSITE=1
+runtime_python="$PWD/.venv-hardware/bin/python"
+if [[ ! -x "$runtime_python" ]]; then runtime_python=/usr/bin/python3; fi
+runtime_site="$("$runtime_python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
+export PYTHONPATH="$runtime_site${PYTHONPATH:+:$PYTHONPATH}"
 if [[ "$action" == run ]]; then
   # Fail on an incomplete configuration before building or opening a serial port.
-  /usr/bin/python3 src/dual_arm_hardware/scripts/hardware_limits.py plan \
+  "$runtime_python" src/dual_arm_hardware/scripts/hardware_limits.py plan \
     --config "$hardware_config" --description-config "$PWD/src/dual_arm_description/config"
   colcon build --symlink-install --packages-select dual_arm_description dual_arm_hardware
   source install/local_setup.bash
+  # ROS node scripts use /usr/bin/env python3; include the local SDK/serial environment.
+  if [[ -x "$PWD/.venv-hardware/bin/python" ]]; then export PATH="$PWD/.venv-hardware/bin:$PATH"; fi
   exec ros2 launch dual_arm_hardware hardware.launch.py "hardware_config:=$hardware_config"
 fi
-exec /usr/bin/python3 src/dual_arm_hardware/scripts/hardware_limits.py "$action" \
+exec "$runtime_python" src/dual_arm_hardware/scripts/hardware_limits.py "$action" \
   --config "$hardware_config" --description-config "$PWD/src/dual_arm_description/config"

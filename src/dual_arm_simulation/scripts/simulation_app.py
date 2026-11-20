@@ -9,8 +9,11 @@ from pathlib import Path
 import sys
 import time
 
-# EGL also supports an offscreen smoke test; Qt presents rendered RGB frames.
-os.environ.setdefault('MUJOCO_GL', 'egl')
+# EGL is Linux-only. Windows uses MuJoCo's GLFW OpenGL context.
+if sys.platform.startswith('linux'):
+    os.environ.setdefault('MUJOCO_GL', 'egl')
+elif sys.platform == 'win32':
+    os.environ.setdefault('MUJOCO_GL', 'glfw')
 import mujoco
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -137,7 +140,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 part = name.removeprefix(side + '_').removesuffix('_joint')
                 caption = {'shoulder_pitch': '어깨 pitch', 'shoulder_roll': '어깨 roll',
                            'elbow_pitch': '팔꿈치', 'wrist_roll': '손목 roll',
-                           'inner_finger': '집게 안쪽', 'outer_finger': '집게 바깥'}[part]
+                           'gripper': '집게 개폐'}[part]
                 label = QtWidgets.QLabel(f'ID {self.sim.motor_ids[index]:02d} · {caption}')
                 label.setObjectName(name + '_motor_label')
                 grid.addWidget(label, row, 0)
@@ -355,7 +358,7 @@ def main():
             return
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
     app = QtWidgets.QApplication(sys.argv[:1])
-    app.setFont(QtGui.QFont('Noto Sans CJK KR', 10))
+    app.setFont(QtGui.QFont('Malgun Gothic' if sys.platform == 'win32' else 'Noto Sans CJK KR', 10))
     window = SimulationWindow(sim, args.output_dir / 'records')
     window.show()
     if args.screenshot:

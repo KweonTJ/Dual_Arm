@@ -1,5 +1,5 @@
 # Fill from the actual robot; missing values deliberately prevent any device I/O.
-# Transport: direct DYNAMIXEL Protocol 1.0 TTL bus (e.g. U2D2 TTL).
+# Transport: U2D2/USB-TTL direct Protocol 1.0, confirmed 2026-11-21.
 # A controller board needs compatible firmware/bridge; a USB port alone is not enough.
 port: null
 baudrate: null
@@ -8,19 +8,17 @@ torque_limit_percent: null
 # +1: increasing raw position increases the corresponding URDF joint angle.
 # -1: increasing raw position decreases the URDF joint angle.
 # Neutral angles come from dual_arm_description/config/motor_calibration.yaml (180 deg).
-# IDs from the user's annotated front view (2026-10-05). Left/right are robot-relative.
-# Right arm appears on the left of the front image. ID 11 is unused.
+# Arm IDs: user's front view 2026-10-05. Grippers: right 1 / left 6, confirmed 2026-11-21.
+# Right arm appears on the left of the front image. IDs 11, 12, 13 are unused.
 # Keep IDs in sync with motor_calibration.yaml; validate_model.py checks both files.
 motors:
   left_shoulder_pitch_joint: {id: 10, direction: null}
   left_shoulder_roll_joint: {id: 9, direction: null}
   left_elbow_pitch_joint: {id: 8, direction: null}
   left_wrist_roll_joint: {id: 7, direction: null}
-  left_inner_finger_joint: {id: 13, direction: null}
-  left_outer_finger_joint: {id: 6, direction: null}
+  left_gripper_joint: {id: 6, direction: null}
   right_shoulder_pitch_joint: {id: 5, direction: null}
   right_shoulder_roll_joint: {id: 4, direction: null}
   right_elbow_pitch_joint: {id: 3, direction: null}
   right_wrist_roll_joint: {id: 2, direction: null}
-  right_inner_finger_joint: {id: 12, direction: null}
-  right_outer_finger_joint: {id: 1, direction: null}
+  right_gripper_joint: {id: 1, direction: null}

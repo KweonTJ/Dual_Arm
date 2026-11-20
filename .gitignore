@@ -4,3 +4,6 @@ log/
 __pycache__/
 *.pyc
 .vscode/
+.venv-windows/
+.venv-hardware/
+dist/

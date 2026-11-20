@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- STEP geometry in metres. Passive jaws/rods: nonlinear TF or MuJoCo loops. -->
+  <xacro:macro name="cg_inertia" params="group">
+    <xacro:property name="g" value="${cg[group]}"/>
+    <xacro:box_inertia mass="${g['mass']}" x="${g['size'][0]}" y="${g['size'][1]}" z="${g['size'][2]}"
+                       xyz="${g['center'][0]} ${g['center'][1]} ${g['center'][2]}"/>
+  </xacro:macro>
+  <xacro:macro name="centered_hand" params="prefix">
+    <link name="${prefix}_palm_link">
+      <xacro:mesh_visual mesh="cg_fixed" material="frame_grey"/>
+      <xacro:box_collision size="0.031 0.0565 0.004" xyz="0 0 -0.005"/>
+      <xacro:box_collision size="0.056 0.0054 0.0401" xyz="-0.012 0.0192 -0.02995"/>
+      <xacro:box_collision size="0.056 0.0054 0.0401" xyz="-0.012 -0.0192 -0.02995"/>
+      <xacro:box_collision size="0.009 0.145 0.0055" xyz="0 0 -0.07425"/>
+      <xacro:cg_inertia group="cg_fixed"/>
+    </link>
+    <joint name="${prefix}_gripper_motor_mount_joint" type="fixed">
+      <parent link="${prefix}_palm_link"/><child link="${prefix}_gripper_motor_link"/>
+    </joint>
+    <link name="${prefix}_gripper_motor_link">
+      <xacro:mesh_visual mesh="ax12a_cg_case" material="servo_black"/>
+      <xacro:box_collision size="0.050 0.032 0.040" xyz="-0.013 0 -0.030"/>
+      <xacro:cg_inertia group="ax12a_cg_case"/>
+    </link>
+    <xacro:hinge name="${prefix}_gripper_joint" parent="${prefix}_palm_link"
+                 child="${prefix}_gripper_rotor_link" xyz="0 0 -0.058" axis="0 0 1"/>
+    <link name="${prefix}_gripper_rotor_link">
+      <xacro:mesh_visual mesh="cg_rotor" material="frame_grey" rpy="0 0 ${cg['cg_rotor']['origin_yaw']}"/>
+      <xacro:cg_inertia group="cg_rotor"/>
+    </link>
+    <joint name="${prefix}_gripper_horn_mount_joint" type="fixed">
+      <parent link="${prefix}_gripper_rotor_link"/><child link="${prefix}_gripper_horn_link"/>
+    </joint>
+    <link name="${prefix}_gripper_horn_link">
+      <xacro:mesh_visual mesh="ax12a_cg_horn" material="servo_black" rpy="0 0 ${cg['cg_rotor']['origin_yaw']}"/>
+      <xacro:cg_inertia group="ax12a_cg_horn"/>
+    </link>
+    <xacro:cg_follower prefix="${prefix}" tag="a" sign="1"/>
+    <xacro:cg_follower prefix="${prefix}" tag="b" sign="-1"/>
+    <joint name="${prefix}_tool_joint" type="fixed">
+      <parent link="${prefix}_palm_link"/><child link="${prefix}_tool0"/><origin xyz="0 0 -0.150"/>
+    </joint>
+    <link name="${prefix}_tool0"/>
+  </xacro:macro>
+  <xacro:macro name="cg_follower" params="prefix tag sign">
+    <xacro:property name="rod" value="${cg['cg_rod_'+tag]}"/>
+    <xacro:property name="jaw" value="${cg['cg_jaw_'+tag]}"/>
+    <joint name="${prefix}_rod_${tag}_joint" type="revolute">
+      <parent link="${prefix}_gripper_rotor_link"/><child link="${prefix}_rod_${tag}_link"/>
+      <origin xyz="${rod['origin_xyz'][0]} ${rod['origin_xyz'][1]} ${rod['origin_xyz'][2]+0.058}" rpy="0 0 ${rod['origin_yaw']}"/>
+      <axis xyz="0 0 1"/><limit lower="-1.7" upper="1.7" effort="0.3" velocity="10"/><dynamics damping="0.0001"/>
+    </joint>
+    <link name="${prefix}_rod_${tag}_link">
+      <xacro:mesh_visual mesh="cg_rod_${tag}" material="frame_grey"/><xacro:cg_inertia group="${'cg_rod_'+tag}"/>
+    </link>
+    <joint name="${prefix}_jaw_${tag}_joint" type="prismatic">
+      <parent link="${prefix}_palm_link"/><child link="${prefix}_jaw_${tag}_link"/>
+      <origin xyz="0 ${jaw['origin_xyz'][1]} ${jaw['origin_xyz'][2]}"/><axis xyz="0 ${sign} 0"/>
+      <limit lower="0" upper="0.035" effort="15" velocity="0.1"/><dynamics damping="0.01"/>
+    </joint>
+    <link name="${prefix}_jaw_${tag}_link">
+      <xacro:mesh_visual mesh="cg_jaw_${tag}" material="frame_grey"/>
+      <xacro:box_collision size="0.020 0.004 0.020" xyz="0 ${sign*(-0.01836143+0.002)} -0.0535"/>
+      <xacro:cg_inertia group="${'cg_jaw_'+tag}"/>
+    </link>
+  </xacro:macro>
+</robot>

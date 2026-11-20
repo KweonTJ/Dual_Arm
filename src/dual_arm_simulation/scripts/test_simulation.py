@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Exercise real MuJoCo dynamics and the desktop controls without hardware."""
 import os
-os.environ.setdefault('MUJOCO_GL', 'egl')
+import sys
+if sys.platform.startswith('linux'):
+    os.environ.setdefault('MUJOCO_GL', 'egl')
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import csv
 from copy import deepcopy
@@ -32,12 +34,12 @@ class PhysicsTests(unittest.TestCase):
 
     def test_robot_mass_joints_and_wrist_offset_preserved(self):
         sim = self.sim
-        self.assertEqual(len(sim.names), 12)
-        self.assertEqual(sim.model.nu, 12)
-        self.assertEqual(sim.model.nq, 19)  # 12 hinges + test object's free joint.
+        self.assertEqual(len(sim.names), 10)
+        self.assertEqual(sim.model.nu, 10)
+        self.assertEqual(sim.model.nq, 25)  # 10 motor hinges + 8 passive joints + free object.
         self.assertEqual(sim.manifest['engine'], mujoco.__version__)
-        self.assertEqual(sim.motor_ids, [10, 9, 8, 7, 13, 6, 5, 4, 3, 2, 12, 1])
-        self.assertAlmostEqual(sum(sim.model.body_mass) - .025, 1.0912)
+        self.assertEqual(sim.motor_ids, [10, 9, 8, 7, 6, 5, 4, 3, 2, 1])
+        self.assertAlmostEqual(sum(sim.model.body_mass) - .025, 1.780994524904885,places=5)
         for side in ('left', 'right'):
             palm = sim.data.body(side + '_palm_link').xpos
             forearm = sim.data.body(side + '_forearm_link').xpos
@@ -47,10 +49,10 @@ class PhysicsTests(unittest.TestCase):
     def test_command_is_bounded_and_does_not_teleport(self):
         sim = self.sim
         before = sim.data.qpos.copy()
-        sim.set_targets(np.full(12, 99))
+        sim.set_targets(np.full(10, 99))
         np.testing.assert_equal(sim.targets, sim.upper)
         np.testing.assert_equal(sim.data.qpos, before)
-        for invalid in (np.zeros(11), np.full(12, np.nan), np.full(12, np.inf)):
+        for invalid in (np.zeros(9), np.full(10, np.nan), np.full(10, np.inf)):
             with self.assertRaises(ValueError):
                 sim.set_targets(invalid)
         np.testing.assert_equal(sim.targets, sim.upper)
@@ -88,7 +90,7 @@ class PhysicsTests(unittest.TestCase):
         sim.set_enabled(False)
         sim.step(1000)
         self.assertLess(sim.data.qpos[sim.qindices[0]], .4)
-        np.testing.assert_equal(sim.snapshot()['effort'], np.zeros(12))
+        np.testing.assert_equal(sim.snapshot()['effort'], np.zeros(10))
         sim.set_enabled(True)
         np.testing.assert_allclose(sim.targets, np.clip(sim.data.qpos[sim.qindices], sim.lower, sim.upper))
 
@@ -102,7 +104,7 @@ class PhysicsTests(unittest.TestCase):
         self.assertAlmostEqual(sim.data.time, .1)
         sim.reset()
         self.assertEqual(sim.data.time, 0)
-        np.testing.assert_equal(sim.targets, np.zeros(12))
+        np.testing.assert_equal(sim.targets, np.zeros(10))
 
     def test_bad_physics_state_latches_fault(self):
         sim = self.sim
@@ -130,18 +132,19 @@ class PhysicsTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 controller_settings(config, sim.names)
 
-    def test_shoulders_hold_90_without_uncapped_compensation(self):
+    def test_heavier_CAD_hands_expose_shoulder_torque_saturation(self):
         sim = self.sim
-        values = np.zeros(12)
+        values = np.zeros(10)
         pitch = [i for i, name in enumerate(sim.names) if 'shoulder_pitch' in name]
         values[pitch] = np.pi / 2
         sim.set_targets(values)
         sim.step(6000)
         sample = sim.snapshot()
-        self.assertLess(max(abs(np.degrees(sample['error']))), .5)
+        # Estimated steel CAD components increase load beyond existing caps.
+        self.assertGreater(max(abs(np.degrees(sample['error']))), .5)
         for i in pitch:
-            self.assertGreater(sample['effort'][i], .50)
-            self.assertLess(sample['effort'][i], sim.caps[i])
+            self.assertTrue(sample['saturated'][i])
+            self.assertLessEqual(abs(sample['effort'][i]),sim.caps[i]+1e-10)
         # No free external force or gravity disabling used to fake tracking.
         np.testing.assert_equal(sim.data.qfrc_applied, np.zeros(sim.model.nv))
         np.testing.assert_equal(sim.model.opt.gravity, [0, 0, -9.81])
@@ -150,7 +153,7 @@ class PhysicsTests(unittest.TestCase):
     def test_anti_windup_under_blocked_motion_and_recovery(self):
         sim = self.sim
         wrist = sim.names.index('left_wrist_roll_joint')
-        values = np.zeros(12)
+        values = np.zeros(10)
         values[wrist] = .5
         sim.set_targets(values)
         # Opposing load exceeds the motor cap; the joint rests against its stop.
@@ -162,17 +165,40 @@ class PhysicsTests(unittest.TestCase):
         sim.step(6000)
         self.assertLess(abs(np.degrees(sim.snapshot()['error'][wrist])), .5)
         sim.set_enabled(False)
-        np.testing.assert_equal(sim.integral_torque, np.zeros(12))
-        np.testing.assert_equal(sim.feedforward, np.zeros(12))
+        np.testing.assert_equal(sim.integral_torque, np.zeros(10))
+        np.testing.assert_equal(sim.feedforward, np.zeros(10))
 
-    def test_target_reversal_clears_integral_and_recovers(self):
+    def test_target_reversal_clears_integral_and_reports_limited_motion(self):
         sim = self.sim
         sim.set_targets(sim.upper)
         sim.step(2000)
         sim.set_targets(sim.lower)
-        np.testing.assert_equal(sim.integral_torque, np.zeros(12))
+        np.testing.assert_equal(sim.integral_torque, np.zeros(10))
         sim.step(6000)
-        self.assertLess(max(abs(np.degrees(sim.snapshot()['error']))), .5)
+        sample=sim.snapshot()
+        for error,saturated in zip(np.degrees(sample['error']),sample['saturated']):
+            if abs(error) >= .5:
+                self.assertTrue(saturated) # New CAD load can exceed the existing elbow cap.
+        self.assertTrue(np.all(np.abs(sample['effort']) <= sim.caps+1e-10))
+
+    def test_single_motor_drives_both_CAD_jaws_through_closed_loops(self):
+        sim=self.sim
+        for fraction in (.5,1,0):
+            values=np.zeros(len(sim.names))
+            for i,name in enumerate(sim.names):
+                if name.endswith('_gripper_joint'): values[i]=sim.upper[i]*fraction
+            sim.set_targets(values);sim.step(5000)
+            for side in ('left','right'):
+                travel=[]
+                for tag in ('a','b'):
+                    joint=sim.model.joint(f'{side}_jaw_{tag}_joint')
+                    travel.append(sim.data.qpos[joint.qposadr[0]])
+                    residual=np.linalg.norm(sim.data.site(f'{side}_rod_{tag}_pin').xpos-
+                                            sim.data.site(f'{side}_jaw_{tag}_pin').xpos)
+                    self.assertLess(residual,1e-5)
+                self.assertAlmostEqual(travel[0],travel[1],delta=1e-5)
+                if fraction in (0,1):self.assertAlmostEqual(sum(travel),.070*fraction,delta=1e-4)
+            self.assertTrue(np.all(np.abs(sim.snapshot()['effort'])<=sim.caps+1e-10))
 
     def test_desktop_slider_camera_pause_and_csv(self):
         from PyQt5 import QtWidgets
@@ -180,14 +206,14 @@ class PhysicsTests(unittest.TestCase):
         app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
         window = SimulationWindow(self.sim, Path(self.temp.name) / 'records')
         try:
-            self.assertEqual(len(window.spins), 12)
+            self.assertEqual(len(window.spins), 10)
             self.assertIn(f'MuJoCo {mujoco.__version__}', window.windowTitle())
             for name, motor_id in zip(self.sim.names, self.sim.motor_ids):
                 label = window.findChild(QtWidgets.QLabel, name + '_motor_label')
                 self.assertTrue(label.text().startswith(f'ID {motor_id:02d} ·'))
             window.shoulder_targets()
             self.assertEqual(window.spins[0].value(), 90)
-            self.assertEqual(window.spins[6].value(), 90)
+            self.assertEqual(window.spins[5].value(), 90)
             window.spins[3].setValue(67.5)
             self.assertAlmostEqual(np.degrees(self.sim.targets[3]), 67.5)
             window.spins[3].setValue(100)
@@ -200,7 +226,7 @@ class PhysicsTests(unittest.TestCase):
             window.pause_button.setChecked(True)
             self.assertTrue(self.sim.paused)
             window.torque_button.setChecked(False)
-            np.testing.assert_equal(self.sim.snapshot()['effort'], np.zeros(12))
+            np.testing.assert_equal(self.sim.snapshot()['effort'], np.zeros(10))
             window.viewport.reset_camera(True)
             self.assertEqual(window.viewport.camera.azimuth, 0)
             window.record_button.setChecked(True)
@@ -209,7 +235,7 @@ class PhysicsTests(unittest.TestCase):
             path = next((Path(self.temp.name) / 'records').glob('*.csv'))
             with path.open() as stream:
                 rows = list(csv.DictReader(stream))
-            self.assertEqual(len(rows), 12)
+            self.assertEqual(len(rows), 10)
             self.assertEqual({row['joint']: int(row['motor_id']) for row in rows},
                              dict(zip(self.sim.names, self.sim.motor_ids)))
             self.assertIn('actuator_torque_nm', rows[0])

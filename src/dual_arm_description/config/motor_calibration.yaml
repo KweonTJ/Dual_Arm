@@ -8,27 +8,23 @@ joints:
   - left_shoulder_roll_joint
   - left_elbow_pitch_joint
   - left_wrist_roll_joint
-  - left_inner_finger_joint
-  - left_outer_finger_joint
+  - left_gripper_joint
   - right_shoulder_pitch_joint
   - right_shoulder_roll_joint
   - right_elbow_pitch_joint
   - right_wrist_roll_joint
-  - right_inner_finger_joint
-  - right_outer_finger_joint
-# User-provided motor IDs, 2026-10-05. Left/right are relative to the robot.
+  - right_gripper_joint
+# Arm IDs 2026-10-05; one-motor gripper IDs confirmed 2026-11-21. Left/right are relative to the robot.
 # Display metadata mirrors dual_arm_hardware/config/hardware.yaml (validated together).
-# In a front view: right arm is screen-left, left arm is screen-right. ID 11 unused.
+# In a front view: right arm is screen-left, left arm is screen-right. IDs 11, 12, 13 unused.
 motor_ids:
   left_shoulder_pitch_joint: 10
   left_shoulder_roll_joint: 9
   left_elbow_pitch_joint: 8
   left_wrist_roll_joint: 7
-  left_inner_finger_joint: 13
-  left_outer_finger_joint: 6
+  left_gripper_joint: 6
   right_shoulder_pitch_joint: 5
   right_shoulder_roll_joint: 4
   right_elbow_pitch_joint: 3
   right_wrist_roll_joint: 2
-  right_inner_finger_joint: 12
-  right_outer_finger_joint: 1
+  right_gripper_joint: 1

@@ -57,7 +57,7 @@ def load_configuration(path, description_config):
     missing = [key for key in ('port', 'baudrate', 'torque_limit_percent') if config.get(key) is None]
     entries = config.get('motors', {})
     if not isinstance(entries, dict) or set(entries) != set(limits) or set(entries) != set(calibration['joints']):
-        raise ProtectionError('Motor mapping must name exactly the 12 configured joints')
+        raise ProtectionError('Motor mapping must name exactly the configured actuated joints')
     for name, entry in entries.items():
         if not isinstance(entry, dict) or entry.get('id') is None or entry.get('direction') is None:
             missing.append(name+' (id/direction)')
@@ -107,10 +107,11 @@ class SDKBus:
         self.port = PortHandler(port)
         self.packet = PacketHandler(1.0)
         self.success = COMM_SUCCESS
-        if not self.port.setBaudRate(baudrate):
-            raise ProtectionError(f'Cannot open {port} at {baudrate}')
-        # Prevent another newly opened serial connection from sharing this bus.
         try:
+            if not self.port.setBaudRate(baudrate):
+                raise ProtectionError(f'Cannot open {port} at {baudrate}')
+            self.port.ser.write_timeout = .2
+            # Prevent another newly opened serial connection from sharing this bus.
             import fcntl
             import termios
             fcntl.ioctl(self.port.ser.fileno(), termios.TIOCEXCL)
@@ -154,6 +155,45 @@ class SDKBus:
         if len(data) != length:
             raise ProtectionError(f'ID {motor_id}: incomplete telemetry packet')
         return data
+
+    def read_registers(self, motor_id, addresses):
+        """Two contiguous EEPROM/RAM reads instead of a packet per register."""
+        addresses = tuple(addresses)
+        if not addresses or any(a not in SIZES for a in addresses):
+            raise ProtectionError('Unknown/empty register set')
+        result = {}
+        for ram in (False, True):
+            group = [a for a in addresses if (a >= TORQUE_ENABLE) == ram]
+            if not group:
+                continue
+            start, end = min(group), max(a+SIZES[a] for a in group)
+            data = self.read_block(motor_id, start, end-start)
+            for a in group:
+                result[a] = int.from_bytes(bytes(data[a-start:a-start+SIZES[a]]),'little')
+        return result
+
+    def sync_write_positions(self, positions):
+        """Protocol 1.0 address 30, exactly two bytes. Does not write speed(32).
+
+        A successful broadcast confirms transmission only. The controller must
+        read every Goal Position back before reporting command acceptance.
+        """
+        if not positions or any(type(i) is not int or not 0 <= i <= 253 or
+                type(q) is not int or not 0 <= q <= 1023 for i,q in positions.items()):
+            raise ProtectionError('Invalid sync position batch')
+        from dynamixel_sdk import GroupSyncWrite
+        group = GroupSyncWrite(self.port,self.packet,GOAL,2)
+        try:
+            for motor_id, raw in positions.items():
+                if not group.addParam(motor_id,[raw & 255,raw >> 8]):
+                    raise ProtectionError(f'ID {motor_id}: cannot build sync position packet')
+            result = group.txPacket()
+            self._check(result,0,'sync_write')
+            if self.events is not None:
+                self.events.append({'operation':'sync_write_positions','positions':dict(positions),
+                                    'comm_result':result,'readback_required':True})
+        finally:
+            group.clearParam()
 
     def close(self):
         if self.port.is_open:
@@ -226,13 +266,15 @@ class ProtectedArm:
 
     def verify(self, enabled):
         for m in self.motors:
-            for a, expected in self.expected[m.id].items():
-                if self.bus.read(m.id, a) != expected:
+            wanted = {**self.expected[m.id],TORQUE_ENABLE:int(enabled),REGISTERED:0}
+            if hasattr(self.bus,'read_registers'):
+                wanted.update({MODEL:12,RETURN_LEVEL:2})
+                values = self.bus.read_registers(m.id,wanted)
+            else:
+                values = {a:self.bus.read(m.id,a) for a in wanted}
+            for a, expected in wanted.items():
+                if values[a] != expected:
                     raise ProtectionError(f'ID {m.id}: protection register {a} changed')
-            if self.bus.read(m.id, TORQUE_ENABLE) != int(enabled):
-                raise ProtectionError(f'ID {m.id}: unexpected torque state')
-            if self.bus.read(m.id, REGISTERED) != 0:
-                raise ProtectionError(f'ID {m.id}: unexpected pending REG_WRITE')
 
     def positions(self):
         result = {}
@@ -265,7 +307,7 @@ class ProtectedArm:
             self.stop(fault=True)
             raise
 
-    def command(self, names, positions):
+    def validate_targets(self, names, positions):
         if not self.enabled or self.fault:
             raise ProtectionError('Arm is not enabled')
         if (len(names) != len(self.motors) or len(positions) != len(names)
@@ -278,6 +320,10 @@ class ProtectedArm:
             if not self.expected[m.id][CW] <= value <= self.expected[m.id][CCW]:
                 raise ProtectionError(f'{m.joint}: target exceeds existing tighter hardware limits')
             raw[m.id] = value
+        return raw
+
+    def command(self, names, positions):
+        raw = self.validate_targets(names,positions)
         try:
             # Do not send motion after a reset, changed cap, or shutdown.
             self.verify(enabled=True)

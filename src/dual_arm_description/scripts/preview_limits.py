@@ -12,10 +12,14 @@ class JointLimit:
 
 def read_limits(description):
     limits = {}
-    for joint in ET.fromstring(description).findall('joint'):
+    root = ET.fromstring(description)
+    motors = {t.find('joint').get('name') for t in root.findall('transmission')}
+    for joint in root.findall('joint'):
         if joint.get('type') == 'fixed':
             continue
         name = joint.get('name')
+        if motors and name not in motors:
+            continue
         if joint.get('type') != 'revolute' or not name or name in limits:
             raise ValueError(f'Expected a unique bounded revolute joint: {name}')
         tag = joint.find('limit')

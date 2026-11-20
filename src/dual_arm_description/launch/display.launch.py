@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import tempfile
+import sys
 import yaml
 import xacro
 from ament_index_python.packages import get_package_share_directory
@@ -15,6 +16,8 @@ from launch_ros.actions import Node
 
 def setup(context):
     share = Path(get_package_share_directory('dual_arm_description'))
+    sys.path.insert(0,str(share/'scripts'))
+    from gripper_kinematics import control_description
     dims_path = LaunchConfiguration('dimensions_file').perform(context)
     mappings = {'dimensions_file': dims_path}
     for key in ('mount_spacing', 'mount_height'):
@@ -29,7 +32,7 @@ def setup(context):
     # Pin GUI and non-GUI inputs to the exact URDF used by the guard and RViz.
     fd, preview_description = tempfile.mkstemp(prefix='dual_arm_preview_', suffix='.urdf')
     with os.fdopen(fd, 'w') as stream:
-        stream.write(description)
+        stream.write(control_description(description))
 
     def cleanup(_context):
         Path(preview_description).unlink(missing_ok=True)
@@ -61,7 +64,7 @@ def generate_launch_description():
         DeclareLaunchArgument('urdf_file', default_value='',
                               description='Pre-expanded URDF; overrides Xacro dimensions when set'),
         DeclareLaunchArgument('dimensions_file', default_value=str(share / 'config/dimensions.yaml')),
-        DeclareLaunchArgument('mount_spacing', default_value='', description='Override shoulder centre spacing in metres; default fits the crossbar ends'),
-        DeclareLaunchArgument('mount_height', default_value='', description='Override shoulder shaft height in metres; crossbar moves with the arms'),
+        DeclareLaunchArgument('mount_spacing', default_value='', description='Override shoulder centre spacing in metres; default fits the torso sides'),
+        DeclareLaunchArgument('mount_height', default_value='', description='Override shoulder shaft height in metres; torso moves with the arms'),
         OpaqueFunction(function=setup),
     ])

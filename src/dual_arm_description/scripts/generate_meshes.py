@@ -85,10 +85,10 @@ def transformed(mesh, xyz=(0, 0, 0), rpy=(0, 0, 0)):
     return mesh @ (rz @ ry @ rx).T + np.array(xyz)
 
 
-def save(name, parts):
+def save(name, parts, min_area=1e-12):
     # VTK extrusion leaves inconsistent cap winding. Repair each closed solid
     # before assembly, including mirrored contours and the hand-built bent toe.
-    mesh = np.concatenate([orient_solid(part) for part in parts]).astype(np.float32).astype(float)
+    mesh = np.concatenate([orient_solid(part,min_area=min_area) for part in parts]).astype(np.float32).astype(float)
     # Compute normals from the exact coordinates written to binary STL.
     report = surface_report(mesh)
     if report['boundary_edges'] or report['unbalanced_edges']:
@@ -186,12 +186,113 @@ def curved_toe(part, drop):
     return [pad+[0,0,-drop],np.array(faces)+[0,0,-drop],flange+[0,0,-drop]]
 
 
+def perforated_plate(outline, thickness, x=0, holes=()):
+    """Constrained triangulation for dense hole grids, with explicit bore walls.
+
+    The contour filter used for simpler arm parts can silently drop contours
+    in dense arrays. Validate cap area before exporting a perforated body plate.
+    """
+    def area(loop):
+        q = np.asarray(loop)
+        return .5*np.sum(q[:,0]*np.roll(q[:,1],-1)-q[:,1]*np.roll(q[:,0],-1))
+    loops = [list(outline) if area(outline)>0 else list(outline)[::-1]]
+    loops += [list(q) if area(q)<0 else list(q)[::-1] for q in holes]
+    points, polygons = vtk.vtkPoints(), vtk.vtkCellArray()
+    points.SetDataTypeToDouble()
+    for loop in loops:
+        polygons.InsertNextCell(len(loop))
+        for u,v in loop:
+            polygons.InsertCellPoint(points.InsertNextPoint(u,v,0))
+    data, constraints = vtk.vtkPolyData(), vtk.vtkPolyData()
+    data.SetPoints(points); constraints.SetPoints(points); constraints.SetPolys(polygons)
+    tri = vtk.vtkDelaunay2D()
+    tri.SetInputData(data); tri.SetSourceData(constraints); tri.SetTolerance(1e-7); tri.Update()
+    cap = triangles(tri.GetOutput())[:,:,[2,0,1]]
+    actual = np.sum(np.linalg.norm(np.cross(cap[:,1]-cap[:,0],cap[:,2]-cap[:,0]),axis=1))*.5
+    expected = sum(area(q) for q in loops)
+    if not np.isclose(actual, expected, rtol=1e-7, atol=1e-12):
+        raise ValueError(f'Perforated cap lost holes: {actual} != {expected}')
+    faces = [cap+[x-thickness/2,0,0],cap+[x+thickness/2,0,0]]
+    walls = []
+    for loop in loops:
+        for a,b in zip(loop,loop[1:]+loop[:1]):
+            p = [x-thickness/2,*a]; q = [x-thickness/2,*b]
+            r = [x+thickness/2,*b]; s = [x+thickness/2,*a]
+            walls.extend([[p,q,r],[p,r,s]])
+    return np.concatenate([*faces,np.array(walls)])
+
+
+def premium_torso():
+    """F51 rear/top + F52 front/bottom, oriented as the November photos.
+
+    Drawing dimensions define the envelope and 8 mm grid. Aperture profiles,
+    moulded ribs, and attachment brackets are original simplified geometry.
+    Each plate has finite thickness, closed bore walls and outward normals.
+    """
+    p = PARTS['premium_torso']
+    w, h, depth, t = [p[k]/1000 for k in ('width_mm', 'height_mm', 'depth_mm', 'wall_mm')]
+
+    def aperture(y, z, width=.012, height=.007):
+        return [(u+y, v+z) for u, v in rounded(width, -height/2, height/2, .0008)]
+
+    def grid_holes(holes, ys, zs, radius=.00105):
+        # Keep small bores clear of windows, slots and larger mounting holes.
+        # Clearance test uses each hole's bounding box conservatively.
+        accepted = list(holes)
+        for y in ys:
+            for z in zs:
+                point = np.array([y, z])
+                if all(np.linalg.norm(np.maximum(np.maximum(np.min(q, axis=0)-point,
+                                                              point-np.max(q, axis=0)), 0))
+                       > radius+.00065 for q in accepted):
+                    accepted.append(circle(y, z, radius, 16))
+        return accepted
+
+    panels = []
+    for front in (False, True):
+        windows = [(y,z) for y in (-.024,0,.024) for z in (-.020,0,.020)
+                   if front or y == 0 or z == 0]
+        holes = [aperture(y,z) for y,z in windows]
+        holes += [aperture(y,z,.0036,.008) for y in (-.008,.008) for z in (-.010,.010)]
+        holes += [aperture(y,z,.007,.0036) for y in (-.038,.038) for z in (-.010,.010)]
+        large = [(y,z) for y in (-.036,-.012,.012,.036) for z in (-.024,.024)]
+        if not front:
+            large += [(y,z) for y in (-.030,-.021,.021,.030) for z in (-.018,.018)]
+        holes += [circle(y,z,.002,20) for y,z in large]
+        holes += [circle(y,z,.0015,16) for y in (-w/2+.003,w/2-.003)
+                  for z in (-h/2+.003,h/2-.003)]
+        holes = grid_holes(holes, np.arange(-.040,.0401,.008), np.arange(-.028,.0281,.004))
+        panels.append(perforated_plate(rounded(w,-h/2,h/2,.001), t,
+                            (1 if front else -1)*(depth-t)/2, holes))
+    # Full F51 flange forms the photographed top, with three cable windows.
+    holes = [aperture(y,0,.006,.011) for y in (-.024,0,.024)]
+    holes = grid_holes(holes, np.arange(-.032,.0321,.008), (-.016,-.008,0,.008,.016))
+    top = perforated_plate(rounded(w,-depth/2+t,depth/2-t,.0005),t,holes=holes)
+    panels.append(top[:,:,[2,1,0]] + [0,0,(h-t)/2])
+    # F52 flange: open centre notch toward the rear, 24.8 mm wide.
+    front_x, rear_x = depth/2-t, depth/2-p['f52_flange_depth_mm']/1000+t
+    # Lower flange is hidden by the stand in the source photos. Retain its
+    # dimensioned open notch; omit the small underside perforations and ribs.
+    for sign in (-1,1):
+        lo,hi = sorted((sign*.0124,sign*w/2))
+        outline = [(lo,rear_x),(hi,rear_x),(hi,front_x),(lo,front_x)]
+        bottom = plate(outline,t)
+        panels.append(bottom[:,:,[2,1,0]] + [0,0,-(h-t)/2])
+    panels.append(box((front_x,.0248,t),(front_x/2,0,-(h-t)/2)))
+    save('premium_torso', panels)
+    # Short lower side attachment tabs visible beside both shoulder housings.
+    mounts = []
+    for sign in (-1,1):
+        tab = plate(rounded(.032,-.027,-.013,.001),.002,
+                    holes=[aperture(x,-.020,.006,.006) for x in (-.010,0,.010)])
+        mounts.append(transformed(tab, (0,sign*(w/2+.001),0), (0,0,math.pi/2)))
+        mounts.append(box((.032,.006,.002),(0,sign*(w/2+.001),-.020)))
+    save('torso_mounts', mounts)
+
+
 def main():
     OUT.mkdir(exist_ok=True)
-    pipe = PARTS['aluminum_crossbar']
-    # Outer envelope only: no wall thickness or mounting holes were provided.
-    save('aluminum_crossbar', [box(tuple(pipe[key]/1000 for key in
-                                       ['depth_mm', 'length_mm', 'height_mm']))])
+    premium_torso()
     case = [plate(rounded(.030, -.038, .012, .004), .035)]
     # Ribbed case edges and mounting flanges remain within the 40 x 32 x 50 envelope.
     for y in [-.014, .014]:

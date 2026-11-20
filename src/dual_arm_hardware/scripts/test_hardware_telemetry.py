@@ -112,8 +112,12 @@ class DriverBridgeTests(unittest.TestCase):
             return []
 
         arm.stop = stop
+        # The adapter consumes cached snapshots. Bus polling/fault handling is
+        # exercised by the actual low-level tests, independently of ROS.
+        snapshot={'fault':'','sample_valid':True,'samples':read_telemetry(arm)}
+        controller=SimpleNamespace(snapshot=lambda: snapshot,emergency_stop=lambda reason:stop(fault=True))
         messages, diagnostics = [], []
-        node = SimpleNamespace(arm=arm, fault_message='', last_rejection='',
+        node = SimpleNamespace(arm=arm,controller=controller,snapshot=snapshot,fault_message='', last_rejection='', expand_positions=lambda p:p,
             publisher=SimpleNamespace(publish=messages.append),
             diagnostics=SimpleNamespace(publish=diagnostics.append),
             get_clock=lambda: SimpleNamespace(now=lambda: SimpleNamespace(to_msg=lambda: Time(sec=42))),
@@ -129,7 +133,7 @@ class DriverBridgeTests(unittest.TestCase):
         node.monitor()
         self.assertEqual(list(messages[0].position), [0.0])
         self.assertEqual(list(messages[0].effort), [])
-        self.assertAlmostEqual(messages[0].velocity[0], math.radians(199.8))
+        self.assertEqual(list(messages[0].velocity), []) # Passive rates are not measured encoders.
         decoded = deserialize_message(serialize_message(diagnostics[0]), DiagnosticArray)
         self.assertEqual(decoded.status[0].message, 'TORQUE_OFF')
         self.assertEqual(decoded.status[1].hardware_id, '7')
@@ -137,7 +141,8 @@ class DriverBridgeTests(unittest.TestCase):
 
     def test_fault_stops_once_and_keeps_publishing_error_without_io(self):
         node, messages, diagnostics, stopped = self.make_node()
-        node.arm.bus.data[34 - START] = 0
+        node.controller.emergency_stop('Bus fault')
+        node.snapshot.update(fault='Bus fault',sample_valid=False,samples={})
         node.monitor()
         reads = len(node.arm.bus.events)
         node.monitor()

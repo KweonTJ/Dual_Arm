@@ -1,0 +1,6 @@
+# Native desktop runtime: Python 3.10-3.12, 64-bit. No ROS installation needed.
+mujoco==3.10.0
+numpy==1.26.4
+PyYAML==6.0.2
+PyQt5==5.15.11
+xacro==2.1.1

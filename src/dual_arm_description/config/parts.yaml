@@ -1,13 +1,18 @@
 # Metres unless a key ends in _mm. ROBOTIS FP04 dimensions are from PDFs (2010 revisions).
 # Geometry/part associations are simplified and photo-inferred, not vendor CAD.
 # Source index: https://www.robotis.com/service/downloadpage.php?ca_id=7040
-aluminum_crossbar:
-  # User-provided outer dimensions and mass; wall thickness not specified.
-  length_mm: 158       # Left/right, Y.
-  depth_mm: 40         # Front/back, X.
-  height_mm: 20        # Vertical, Z.
-  mass_kg: 0.2
-  # Closed outer envelope; inertia approximated as a uniform box of this mass.
+premium_torso:
+  # F51 (PDF no.377) rear/top + F52 (PDF no.381) front/bottom.
+  # Official drawings, 07/06/2010; identified against 20261121 photos.
+  width_mm: 90         # Y: twice the dimensioned 45 mm half-width.
+  height_mm: 66        # Z: twice the dimensioned 33 mm half-height.
+  depth_mm: 44         # X: F51 overall flange depth.
+  wall_mm: 3          # F52 section; simplified uniform webs on both parts.
+  f52_flange_depth_mm: 42.45
+  mass_kg: 0.060       # UNMEASURED assembly estimate, not manufacturer data.
+  shoulder_gap_mm: 2   # Photo-inferred clearance / attachment neck.
+  shaft_below_top_mm: 14 # Photo-inferred mounting; case top is shaft +12 mm.
+  # Aperture outlines, ribs and side mounting brackets are simplified.
 approximation:
   side_wall: 0.003       # Not explicitly dimensioned on F2/F4 drawing.
   back_wall: 0.002       # Assumption: do not label as manufacturer tolerance.
