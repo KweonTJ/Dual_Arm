@@ -172,6 +172,7 @@ class TwinBridge:
         self._quit.set();self._wake.set();self._thread.join()
         with self._lock:
             if self._phase!='FAULT':self._phase='CLOSED'
+            self._feedback={}
             errors=list(self._off_errors)
         if self._log:self._log.close();self._log=None
         return errors

@@ -244,6 +244,64 @@ class PhysicsTests(unittest.TestCase):
             window.close()
             app.processEvents()
 
+    def test_measured_view_is_separate_and_alignment_is_explicit(self):
+        sim=self.sim
+        measured={n:0. for n in sim.names};measured['right_wrist_roll_joint']=.2
+        original=sim.data.qpos.copy();targets=sim.targets.copy()
+        display=sim.measured_data(measured)
+        np.testing.assert_equal(sim.data.qpos,original)
+        np.testing.assert_equal(sim.targets,targets)
+        index=sim.names.index('right_wrist_roll_joint')
+        self.assertAlmostEqual(display.qpos[sim.qindices[index]],.2)
+        sim.align_to_measured(measured)
+        self.assertAlmostEqual(sim.data.qpos[sim.qindices[index]],.2)
+        self.assertAlmostEqual(sim.targets[index],.2)
+        with self.assertRaises(ValueError):sim.measured_data({})
+        with self.assertRaises(ValueError):sim.align_to_measured({**measured,'right_wrist_roll_joint':100})
+
+    def test_twin_UI_seed_shared_target_pause_feedback_and_CSV(self):
+        import time
+        from PyQt5 import QtWidgets
+        from simulation_app import SimulationWindow
+        from twin_bridge import TwinBridge,controller_factory
+        app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        bridge=TwinBridge(self.sim.names,self.sim.motor_ids,lambda:controller_factory('mock',
+            ROOT/'src/dual_arm_description',None,ROOT/'src/dual_arm_hardware/config/lowlevel.yaml'),'mock')
+        window=SimulationWindow(self.sim,Path(self.temp.name)/'twin_records',bridge)
+        def wait_for(phase):
+            deadline=time.monotonic()+3
+            while time.monotonic()<deadline:
+                app.processEvents();window.twin_tick()
+                if bridge.snapshot()['phase']==phase:return
+                time.sleep(.005)
+            self.fail(str(bridge.snapshot()))
+        try:
+            window.twin_connect.click();wait_for('TORQUE_OFF')
+            window.spins[3].setValue(30)
+            window.twin_enable.click();wait_for('ACTIVE')
+            self.assertAlmostEqual(self.sim.targets[3],0) # Discard the old GUI goal.
+            window.spins[3].setValue(10)
+            deadline=time.monotonic()+2
+            while time.monotonic()<deadline:
+                app.processEvents();window.twin_tick()
+                if abs(float(window.measured_cells[3][0].text())-10)<.3:break
+                time.sleep(.005)
+            self.assertAlmostEqual(float(window.measured_cells[3][0].text()),10,delta=.3)
+            window.measured_view.setChecked(True);window.refresh()
+            self.assertIsNotNone(window.viewport.measured)
+            window.pause_button.setChecked(True);wait_for('ACTIVE')
+            self.assertFalse(window.spins[3].isEnabled());self.assertFalse(window.pose_buttons[0].isEnabled())
+            window.record_button.setChecked(True);window.refresh();window.record_button.setChecked(False)
+            path=next((Path(self.temp.name)/'twin_records').glob('*.csv'))
+            with path.open() as stream:rows=list(csv.DictReader(stream))
+            self.assertEqual({r['twin_mode'] for r in rows},{'mock'})
+            self.assertTrue(all(r['measured_deg'] for r in rows))
+            window.twin_stop.click();wait_for('FAULT');window.refresh()
+            self.assertEqual(window.measured_cells[3][0].text(),'--')
+            self.assertIn('실측 데이터 없음',window.viewport.text())
+        finally:
+            window.close();app.processEvents()
+
 
 if __name__ == '__main__':
     unittest.main()

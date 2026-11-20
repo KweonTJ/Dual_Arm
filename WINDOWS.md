@@ -38,3 +38,13 @@ simulation.bat --headless --seconds 2 --screenshot log\simulation\windows_check.
 검증 범위: Linux에서 ROS 없는 별도 Python 환경으로 동일 실행 경로·물리 모델·GUI를 검사하고 Windows용 의존성 배포 파일을 확인합니다. 실제 Windows 그래픽 드라이버와 배치 실행은 Windows PC에서 추가 확인이 필요합니다.
 
 공식 참고: [MuJoCo Python 설치](https://mujoco.readthedocs.io/en/stable/python.html), [Xacro Python 패키지](https://pypi.org/project/xacro/).
+
+## 모의 실기 연동 시연
+
+명령 프롬프트에서 프로젝트 폴더로 이동한 뒤 실행합니다.
+
+```bat
+simulation.bat --twin mock --twin-demo
+```
+
+동일 목표를 MuJoCo와 모의 모터 버스에 보내고 돌아온 각도를 확인하는 모드입니다. 실제 모터와 연결하지 않습니다. U2D2 실기 연동은 현재 Linux의 `./simulation.sh --twin real` 경로를 사용합니다.

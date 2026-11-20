@@ -11,7 +11,18 @@ cd /home/ktj/Dual_Arm
 
 Windows에서는 루트의 `simulation.bat`로 같은 데스크톱 앱을 실행합니다. 첫 실행 시 Python 3.10~3.12 64-bit로 전용 환경에 `requirements-desktop.txt`의 패키지를 설치합니다. ROS 없이 Xacro/YAML을 전개하고 Windows의 GLFW 렌더링으로 3D 로봇과 상태창을 보여줍니다. 자세한 절차는 [WINDOWS.md](../../WINDOWS.md)를 참고하세요. Windows 앱은 해당 PC에서 독립적으로 시뮬레이션하며 실기 또는 Linux 앱과의 실시간 동기화는 별도 기능입니다.
 
-매번 현재 Xacro와 YAML로 `log/simulation/current.urdf`를 전개한 뒤 물리 모델을 생성하므로 다시 실행하면 모델 변경이 반영됩니다. `display.sh`는 기존 RViz 형상 프리뷰이며, `monitor.sh`의 인자 없는 실행은 실기 진단 토픽용 터미널 모니터입니다. 시뮬레이터는 실제 모터에 연결하거나 명령을 보내지 않습니다.
+매번 현재 Xacro와 YAML로 `log/simulation/current.urdf`를 전개한 뒤 물리 모델을 생성하므로 다시 실행하면 모델 변경이 반영됩니다. `display.sh`는 기존 RViz 형상 프리뷰이며, `monitor.sh`의 인자 없는 실행은 실기 진단 토픽용 터미널 모니터입니다. 기본 실행은 실제 모터에 연결하지 않습니다. `--twin real`에서 연결과 제어 시작을 명시적으로 선택하면 low-level 코어로 실제 목표를 전송합니다.
+
+## 실기 연동 모드
+
+일반 실행은 가상 시뮬레이션입니다. 실기와 동일한 목표를 공유하고 실측 자세를 보려면 [TWIN.md](TWIN.md)의 연동 모드를 사용합니다.
+
+```bash
+./simulation.sh --twin mock --twin-demo  # 장치 없는 시연
+./simulation.sh --twin real              # 설정 후 Linux U2D2 실기 연결
+```
+
+`연결 → 실기 제어 시작 → 목표 조작` 순서입니다. 제어 시작 시 실측 현재 자세를 화면에 맞추고 이전 목표를 폐기합니다. `실측 자세 보기`는 별도 표시 데이터를 사용하며 MuJoCo의 물리 상태를 계속 덮어쓰지 않습니다. 실제 통신과 동작은 아직 미검증입니다.
 
 ## 화면 조작
 

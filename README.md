@@ -220,6 +220,18 @@ PYTHONNOUSERSITE=1 MPLCONFIGDIR=/tmp/dual_arm_mpl \
 
 STL 형상 재생성은 `python3 src/dual_arm_description/scripts/generate_meshes.py`로 수행합니다. `display.sh`의 자동 갱신에는 시스템 `python3-numpy`, `python3-vtk9`, `python3-yaml`, `python3-matplotlib`가 필요하며, 이 환경에 설치되어 있습니다. 스크립트는 `/usr/bin/python3`와 `PYTHONNOUSERSITE=1`을 사용해 사용자 설치 matplotlib 충돌을 피합니다. 이미 생성된 모델을 위의 직접 ROS launch 명령으로 보는 경우에는 메시·프리뷰 생성용 의존성이 필요 없습니다.
 
+## 시뮬레이션 화면과 실제 로봇 연동
+
+[연동 방법과 동작 설명](src/dual_arm_simulation/TWIN.md)을 참고하세요. 슬라이더의 동일 목표를 MuJoCo와 low-level 제어기에 보내고, 모터 실측각을 별도 3D 자세와 비교 표에 반영합니다. 실제 연동은 현재 자세 확인 후 수동으로 시작합니다.
+
+```bash
+./simulation.sh --twin mock --twin-demo  # 모터 없이 자동 연동 시연
+./simulation.sh --twin mock              # 모의 버스를 직접 조작
+./simulation.sh --twin real              # U2D2 실기 연동 화면; 연결/제어 시작 버튼으로 활성화
+```
+
+실기 설정의 포트·baudrate·출력 비율·회전 방향은 아직 미입력입니다. 현재 확인한 것은 MOCK 연동이며 실제 모터 동작 시험은 수행하지 않았습니다. 최신 시연 화면은 [08_실기_연동_모의시연.png](preview/08_실기_연동_모의시연.png)입니다.
+
 ## 실제 로봇 저수준 제어
 
 U2D2/USB-TTL 직접 연결용 Python API와 터미널 제어창을 추가했습니다. 실행 방법과 API는 [LOWLEVEL.md](src/dual_arm_hardware/LOWLEVEL.md)에 있습니다. 위치(rad), 중앙 그리퍼 벌림(mm), 현재 위치 유지, 토크 ON/OFF, 오류 정지와 상태 읽기를 제공합니다. 모터 영점 180°, 현재 10개 ID·관절 제한을 공유하고, 명령 미갱신/통신 오류는 전체 OFF 시도 후 오류로 유지합니다. 실기 연결 설정과 회전 방향은 아직 미입력입니다.

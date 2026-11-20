@@ -7,7 +7,13 @@ source install/local_setup.bash
 unset PYTHONNOUSERSITE
 # Real twin mode uses the dedicated SDK/pyserial installation, while MuJoCo/Qt
 # continue to run in the existing desktop runtime.
-if [[ " $* " == *" --twin real "* && -x "$PWD/.venv-hardware/bin/python" ]]; then
+twin_real=false
+previous_arg=''
+for argument in "$@"; do
+  if [[ "$argument" == --twin=real || ( "$previous_arg" == --twin && "$argument" == real ) ]]; then twin_real=true; fi
+  previous_arg="$argument"
+done
+if "$twin_real" && [[ -x "$PWD/.venv-hardware/bin/python" ]]; then
   hardware_site="$("$PWD/.venv-hardware/bin/python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
   export PYTHONPATH="$hardware_site${PYTHONPATH:+:$PYTHONPATH}"
 fi

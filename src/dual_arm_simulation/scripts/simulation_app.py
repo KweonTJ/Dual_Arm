@@ -287,7 +287,8 @@ class SimulationWindow(QtWidgets.QMainWindow):
         prefix='MOCK' if self.twin.mode=='mock' else '실기'
         self.twin_status.setText(f'{prefix}: {label}'+('\n'+state['error'] if state['error'] else '')+
                                 ('\nOFF 미확인: '+'; '.join(state['torque_off_unconfirmed']) if state['torque_off_unconfirmed'] else ''))
-        self.twin_connect.setEnabled(phase=='DISCONNECTED');self.twin_enable.setEnabled(phase=='TORQUE_OFF')
+        self.twin_connect.setEnabled(phase=='DISCONNECTED')
+        self.twin_enable.setEnabled(phase=='TORQUE_OFF' and not self.sim.fault)
         self.twin_disable.setEnabled(phase in ('ACTIVE','AWAITING_SEED','HOLDING'))
         self.twin_stop.setEnabled(phase in ('TORQUE_OFF','ACTIVE','AWAITING_SEED','HOLDING','ENABLING'))
         busy=phase not in ('DISCONNECTED','TORQUE_OFF','ACTIVE','FAULT')
@@ -511,8 +512,22 @@ def main():
         QtCore.QTimer.singleShot(round(args.seconds*1000) if args.twin!='off' and args.headless else 800, capture)
     elif args.headless and args.twin!='off':
         QtCore.QTimer.singleShot(round(args.seconds*1000),window.close)
-    sys.exit(app.exec_())
+    code=app.exec_()
+    if args.headless and twin:
+        state=window._twin_snapshot or twin.snapshot()
+        samples=state['feedback'].get('samples',{})
+        report=dict(mode=args.twin,phase_before_close=state['phase'],error=state['error'],
+                    sample_valid=state['feedback'].get('sample_valid',False),
+                    target_deg=dict(zip(sim.names,np.degrees(sim.targets).tolist())),
+                    simulation_deg=dict(zip(sim.names,np.degrees(sim.snapshot()['position']).tolist())),
+                    measured_deg={n:s['position_deg'] for n,s in samples.items()},
+                    motor_ids=dict(zip(sim.names,sim.motor_ids)),torque_off_unconfirmed=twin.snapshot()['torque_off_unconfirmed'])
+        (args.output_dir/'twin_demo_result.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+        print(json.dumps(report))
+        if args.twin_demo and (report['phase_before_close']!='ACTIVE' or not report['sample_valid'] or report['torque_off_unconfirmed']):
+            code=2
+    return code
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

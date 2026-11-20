@@ -37,6 +37,13 @@ class TwinBridgeTests(unittest.TestCase):
         self.assertFalse(self.factory_called)
         self.assertFalse(self.backend.arm.enabled)
 
+    def test_stale_feedback_does_not_look_fresh(self):
+        with self.bridge._lock:
+            self.bridge._feedback=dict(sample_valid=True,received_at=time.monotonic()-1,
+                                       samples={'fake':1},joint_positions_rad={'fake':1})
+        feedback=self.bridge.snapshot()['feedback']
+        self.assertFalse(feedback['sample_valid']);self.assertEqual(feedback['samples'],{})
+
     def test_enable_barrier_uses_measured_pose_and_discards_old_GUI_targets(self):
         from ax12_guard import PRESENT
         wrist=self.backend.by_name['right_wrist_roll_joint']
