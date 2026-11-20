@@ -30,9 +30,9 @@ def loop_settings(values=None):
 
 
 class DualArmLowLevel:
-    def __init__(self,bus,motors,description_config,settings=None,clock=time.monotonic):
+    def __init__(self,bus,motors,description_config,settings=None,clock=time.monotonic,*,configure_protection=True):
         self.settings = loop_settings(settings)
-        self.bus,self.arm,self.clock = bus,ProtectedArm(bus,motors),clock
+        self.bus,self.arm,self.clock = bus,ProtectedArm(bus,motors,configure_protection),clock
         self.names = tuple(m.joint for m in motors)
         self.by_name = {m.joint:m for m in motors}
         sys.path.insert(0,str(Path(description_config).parent/'scripts'))
@@ -55,7 +55,8 @@ class DualArmLowLevel:
         values = yaml.safe_load(Path(loop_config).read_text()) if loop_config else None
         settings = loop_settings(values)
         # Construct without opening the bus first so missing kinematics cannot leak a port.
-        instance = cls(None,motors,description_config,settings)
+        instance = cls(None,motors,description_config,settings,
+                       configure_protection=config['configure_protection'])
         instance.bus = instance.arm.bus = SDKBus(config['port'],config['baudrate'])
         return instance
 
@@ -226,7 +227,7 @@ class DualArmLowLevel:
                         sample_age_s=age,samples=samples,targets_rad=dict(self._targets),
                         joint_positions_rad=self._expand({n:s['position_rad'] for n,s in samples.items()}),
                         fault=self.fault_message,torque_off_unconfirmed=list(self.arm.stop_errors),
-                        stats=dict(self.stats))
+                        configure_protection=self.arm.configure_protection,stats=dict(self.stats))
 
     def _run(self):
         while not self._quit.is_set():

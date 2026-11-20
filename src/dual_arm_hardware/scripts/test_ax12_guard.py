@@ -48,7 +48,8 @@ class HardwareProtectionTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name)/'hardware.yaml'
         self.config = yaml.safe_load((PACKAGE/'config/hardware.yaml').read_text())
-        self.config.update(port='/dev/FAKE_TEST_ONLY', baudrate=1000000, torque_limit_percent=25.0)
+        self.config.update(port='/dev/FAKE_TEST_ONLY', baudrate=1000000,
+                           configure_protection=True, torque_limit_percent=25.0)
         for index, entry in enumerate(self.config['motors'].values(), 1):
             entry.update(id=index, direction=1 if index%2 else -1)
         self.write_config()
@@ -66,8 +67,14 @@ class HardwareProtectionTests(unittest.TestCase):
         self.bus.events.clear()
 
     def test_unfilled_real_config_is_rejected(self):
-        with self.assertRaisesRegex(ProtectionError, 'Missing hardware settings'):
-            load_configuration(PACKAGE/'config/hardware.yaml', DESCRIPTION_CONFIG)
+        good = deepcopy(self.config)
+        for key in ('port', 'baudrate', 'torque_limit_percent'):
+            with self.subTest(missing=key):
+                self.config = deepcopy(good)
+                self.config[key] = None
+                self.write_config()
+                with self.assertRaisesRegex(ProtectionError, 'Missing hardware settings'):
+                    load_configuration(self.path, DESCRIPTION_CONFIG)
 
     def test_bad_id_direction_or_percentage_is_rejected(self):
         good = deepcopy(self.config)

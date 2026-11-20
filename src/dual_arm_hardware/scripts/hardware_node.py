@@ -38,7 +38,9 @@ class HardwareNode(Node):
         self.heartbeat_subscription = self.create_subscription(Empty,'dual_arm/keepalive',self.keepalive,1)
         self.service = self.create_service(SetBool, 'dual_arm/enable', self.enable)
         self.timer = self.create_timer(.2, self.monitor)
-        self.get_logger().info('Device limits applied and read back. Torque remains OFF; waiting for /dual_arm/enable.')
+        setup = ('Device limits applied and read back.' if self.arm.configure_protection else
+                 'Existing device settings retained; no protection settings written.')
+        self.get_logger().info(setup+' Torque remains OFF; waiting for /dual_arm/enable.')
 
     def report_stop(self, errors):
         if errors:
@@ -48,7 +50,7 @@ class HardwareNode(Node):
         try:
             if request.data:
                 self.controller.enable()
-                response.message = 'Torque ON, holding measured positions; protection verified'
+                response.message = 'Torque ON, holding measured positions; device state verified'
             else:
                 errors = self.controller.disable()
                 self.report_stop(errors)

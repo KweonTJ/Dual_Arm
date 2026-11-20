@@ -1,24 +1,33 @@
-# Fill from the actual robot; missing values deliberately prevent any device I/O.
+# Provisional simulator/MOCK-aligned settings, requested 2026-11-21.
+# IDs, neutral and joint limits match the current model. FTDI port (ttyUSB1)
+# and 1 Mbps responses from AX-12A IDs 1..10 verified 2026-11-21, torque OFF.
+# Installed motor directions and physical neutral calibration remain unverified.
 # Transport: U2D2/USB-TTL direct Protocol 1.0, confirmed 2026-11-21.
 # A controller board needs compatible firmware/bridge; a USB port alone is not enough.
-port: null
-baudrate: null
-# Output percentage, NOT N.m. Do not infer this from URDF effort or stall torque.
-torque_limit_percent: null
+port: /dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTBINAVK-if00-port0
+baudrate: 1000000            # Verified on the physical bus, IDs 1..10.
+# Keep the motor's existing CW/CCW, Max Torque, Torque Limit and Shutdown values.
+# No extra hardware protection settings are written during connection or apply.
+configure_protection: false
+# The MuJoCo PID gains and N.m caps remain simulation-only.
 # +1: increasing raw position increases the corresponding URDF joint angle.
 # -1: increasing raw position decreases the URDF joint angle.
+# All +1 follows the simulator/MOCK convention, pending physical direction checks.
 # Neutral angles come from dual_arm_description/config/motor_calibration.yaml (180 deg).
+# Angle ranges come from dual_arm_description/config/joint_limits.yaml:
+# shoulder pitch [-30,90], roll [0,90], elbow [0,90], wrist [-67.5,67.5],
+# centered gripper [0,47.87446472932428] degrees (70 mm jaw opening).
 # Arm IDs: user's front view 2026-10-05. Grippers: right 1 / left 6, confirmed 2026-11-21.
 # Right arm appears on the left of the front image. IDs 11, 12, 13 are unused.
 # Keep IDs in sync with motor_calibration.yaml; validate_model.py checks both files.
 motors:
-  left_shoulder_pitch_joint: {id: 10, direction: null}
-  left_shoulder_roll_joint: {id: 9, direction: null}
-  left_elbow_pitch_joint: {id: 8, direction: null}
-  left_wrist_roll_joint: {id: 7, direction: null}
-  left_gripper_joint: {id: 6, direction: null}
-  right_shoulder_pitch_joint: {id: 5, direction: null}
-  right_shoulder_roll_joint: {id: 4, direction: null}
-  right_elbow_pitch_joint: {id: 3, direction: null}
-  right_wrist_roll_joint: {id: 2, direction: null}
-  right_gripper_joint: {id: 1, direction: null}
+  left_shoulder_pitch_joint: {id: 10, direction: 1}
+  left_shoulder_roll_joint: {id: 9, direction: 1}
+  left_elbow_pitch_joint: {id: 8, direction: 1}
+  left_wrist_roll_joint: {id: 7, direction: 1}
+  left_gripper_joint: {id: 6, direction: 1}
+  right_shoulder_pitch_joint: {id: 5, direction: 1}
+  right_shoulder_roll_joint: {id: 4, direction: 1}
+  right_elbow_pitch_joint: {id: 3, direction: 1}
+  right_wrist_roll_joint: {id: 2, direction: 1}
+  right_gripper_joint: {id: 1, direction: 1}

@@ -29,16 +29,23 @@ def main():
     code = 0
     try:
         config, motors = load_configuration(args.config, args.description_config)
-        report['requested_output_percent'] = config['torque_limit_percent']
+        report['configure_protection'] = config['configure_protection']
+        report['requested_output_percent'] = (config.get('torque_limit_percent')
+                                               if config['configure_protection'] else None)
         report['motors'] = [vars(m) for m in motors]
         if args.action == 'plan':
             report['status'] = 'offline_plan_only'
         else:
             bus = SDKBus(config['port'], config['baudrate'], record=True)
-            arm = ProtectedArm(bus, motors)
+            arm = ProtectedArm(bus, motors,config['configure_protection'])
             report['effective_registers'] = arm.prepare(apply=args.action=='apply')
             report['verified_on_device'] = arm.ready
-            report['status'] = 'applied_and_read_back' if arm.ready else 'preflight_only_no_writes'
+            if not arm.ready:
+                report['status'] = 'preflight_only_no_writes'
+            elif arm.configure_protection:
+                report['status'] = 'applied_and_read_back'
+            else:
+                report['status'] = 'existing_device_settings_verified'
         print(json.dumps(report, indent=2, ensure_ascii=False))
     except Exception as exc:
         code = 2

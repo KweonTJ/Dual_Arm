@@ -20,7 +20,7 @@ DESCRIPTION=ROOT/'src/dual_arm_description/config'
 class LowLevelTests(unittest.TestCase):
     def setUp(self):
         config=yaml.safe_load((ROOT/'src/dual_arm_hardware/config/hardware.yaml').read_text())
-        config.update(port='/dev/FAKE',baudrate=1000000,torque_limit_percent=25.)
+        config.update(port='/dev/FAKE',baudrate=1000000,configure_protection=True,torque_limit_percent=25.)
         for i,entry in enumerate(config['motors'].values()):entry['direction']=1 if i%2 else -1
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'config.yaml';p.write_text(yaml.safe_dump(config,sort_keys=False))

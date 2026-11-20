@@ -24,7 +24,8 @@ HELP='enable | hold | disable | status | set JOINT RAD [JOINT RAD ...] | grip le
 
 def mock_controller(description,settings):
     config=yaml.safe_load((ROOT/'src/dual_arm_hardware/config/hardware.yaml').read_text())
-    config.update(port='/dev/MOCK_NO_DEVICE',baudrate=1000000,torque_limit_percent=25.)
+    config.update(port='/dev/MOCK_NO_DEVICE',baudrate=1000000,
+                  configure_protection=True,torque_limit_percent=25.)
     for motor in config['motors'].values():motor['direction']=1
     with tempfile.TemporaryDirectory() as directory:
         path=Path(directory)/'mock.yaml';path.write_text(yaml.safe_dump(config))

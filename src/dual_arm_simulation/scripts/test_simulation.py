@@ -181,6 +181,49 @@ class PhysicsTests(unittest.TestCase):
                 self.assertTrue(saturated) # New CAD load can exceed the existing elbow cap.
         self.assertTrue(np.all(np.abs(sample['effort']) <= sim.caps+1e-10))
 
+    def test_slider_steps_and_reversals_settle_without_visible_rebound(self):
+        sim = self.sim
+        for index, name in enumerate(sim.names):
+            sim.reset()
+            for target_deg in (30, 5, 15, 0):
+                with self.subTest(joint=name, target_deg=target_deg):
+                    start_deg = np.degrees(sim.data.qpos[sim.qindices[index]])
+                    target = np.zeros(len(sim.names))
+                    target[index] = np.radians(target_deg)
+                    sim.set_targets(target)
+                    positions = []
+                    for _ in range(600):
+                        sim.step(5)
+                        positions.append(np.degrees(sim.data.qpos[sim.qindices[index]]))
+                    direction = np.sign(target_deg - start_deg)
+                    overshoot = max(0., np.max(direction * (np.array(positions) - target_deg)))
+                    # Below one AX-12A encoder increment (300/1023 degrees).
+                    self.assertLess(overshoot, .25)
+                    self.assertLess(np.ptp(positions[-100:]), .1)
+                    # Large shoulder/elbow steps may stall at the torque cap.
+                    if target_deg != 30:
+                        self.assertAlmostEqual(positions[-1], target_deg, delta=.5)
+
+    def test_continuous_slider_drag_and_release_do_not_rebound(self):
+        sim = self.sim
+        drag = np.concatenate((np.linspace(0, 20, 20), np.linspace(20, 5, 10),
+                               np.linspace(5, 15, 10)))
+        for index, name in enumerate(sim.names):
+            with self.subTest(joint=name):
+                sim.reset()
+                target = np.zeros(len(sim.names))
+                for degrees in drag:
+                    target[index] = np.radians(degrees)
+                    sim.set_targets(target)
+                    sim.step(33)  # Match desktop refresh cadence while dragging.
+                positions = []
+                for _ in range(600):
+                    sim.step(5)
+                    positions.append(np.degrees(sim.data.qpos[sim.qindices[index]]))
+                self.assertLess(max(positions) - 15, .25)
+                self.assertLess(np.ptp(positions[-100:]), .1)
+                self.assertAlmostEqual(positions[-1], 15, delta=.5)
+
     def test_single_motor_drives_both_CAD_jaws_through_closed_loops(self):
         sim=self.sim
         for fraction in (.5,1,0):

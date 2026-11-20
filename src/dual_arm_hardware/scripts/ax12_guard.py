@@ -32,7 +32,7 @@ class Motor:
     zero: int
     lower: int
     upper: int
-    cap: int
+    cap: int | None
     q_lower: float
     q_upper: float
 
@@ -54,7 +54,11 @@ def load_configuration(path, description_config):
     calibration = yaml.safe_load((description_config/'motor_calibration.yaml').read_text())
     if not isinstance(config, dict):
         raise ProtectionError('Hardware configuration must be a mapping')
-    missing = [key for key in ('port', 'baudrate', 'torque_limit_percent') if config.get(key) is None]
+    configure = config.setdefault('configure_protection', True)
+    if type(configure) is not bool:
+        raise ProtectionError('configure_protection must be a boolean')
+    required = ('port', 'baudrate', 'torque_limit_percent') if configure else ('port', 'baudrate')
+    missing = [key for key in required if config.get(key) is None]
     entries = config.get('motors', {})
     if not isinstance(entries, dict) or set(entries) != set(limits) or set(entries) != set(calibration['joints']):
         raise ProtectionError('Motor mapping must name exactly the configured actuated joints')
@@ -67,12 +71,14 @@ def load_configuration(path, description_config):
         raise ProtectionError('Set the actual /dev/... adapter port')
     if type(config['baudrate']) is not int or config['baudrate'] <= 0:
         raise ProtectionError('Baudrate must be a positive integer')
-    percent = config['torque_limit_percent']
-    if type(percent) not in (int, float) or not math.isfinite(percent) or not 0 < percent <= 100:
-        raise ProtectionError('Torque output percentage must be finite and in (0, 100]')
-    cap = math.floor(percent*1023/100)
-    if cap < 1:
-        raise ProtectionError('Torque output cap is below one register unit')
+    cap = None
+    if configure:
+        percent = config['torque_limit_percent']
+        if type(percent) not in (int, float) or not math.isfinite(percent) or not 0 < percent <= 100:
+            raise ProtectionError('Torque output percentage must be finite and in (0, 100]')
+        cap = math.floor(percent*1023/100)
+        if cap < 1:
+            raise ProtectionError('Torque output cap is below one register unit')
     zero_degrees = float(calibration['motor_zero_degrees'])
     if not math.isfinite(zero_degrees) or not 0 <= zero_degrees <= 300:
         raise ProtectionError('Motor neutral angle is outside AX-12A travel')
@@ -201,8 +207,13 @@ class SDKBus:
 
 
 class ProtectedArm:
-    def __init__(self, bus, motors):
+    def __init__(self, bus, motors, configure_protection=True):
+        if type(configure_protection) is not bool:
+            raise ProtectionError('configure_protection must be a boolean')
+        if configure_protection and any(m.cap is None for m in motors):
+            raise ProtectionError('Protection configuration requires a torque output cap')
         self.bus, self.motors = bus, motors
+        self.configure_protection = configure_protection
         self.expected = {}
         self.ready = False
         self.enabled = False
@@ -238,12 +249,18 @@ class ProtectedArm:
                 raise ProtectionError(f'ID {m.id}: invalid device angle limits')
             if not 0 < values[MAX_TORQUE] <= 1023 or not 0 < values[TORQUE_LIMIT] <= 1023:
                 raise ProtectionError(f'ID {m.id}: zero/invalid torque cap; no automatic alarm recovery')
-            lo, hi = max(m.lower, values[CW]), min(m.upper, values[CCW])
-            cap = min(m.cap, values[MAX_TORQUE], values[TORQUE_LIMIT])
+            if self.configure_protection:
+                lo, hi = max(m.lower, values[CW]), min(m.upper, values[CCW])
+                cap = min(m.cap, values[MAX_TORQUE], values[TORQUE_LIMIT])
+                desired = {CW: lo, CCW: hi, MAX_TORQUE: cap, TORQUE_LIMIT: cap,
+                           SHUTDOWN: values[SHUTDOWN] | REQUIRED_SHUTDOWN}
+            else:
+                # Observe the existing device configuration without replacing it
+                # with host limits, a 100% cap, or different shutdown bits.
+                desired = {a: values[a] for a in (CW, CCW, MAX_TORQUE, TORQUE_LIMIT, SHUTDOWN)}
+                lo, hi = desired[CW], desired[CCW]
             if not lo <= m.zero <= hi or not lo <= values[PRESENT] <= hi or lo >= hi:
                 raise ProtectionError(f'ID {m.id}: neutral or present position outside proposed angle limits')
-            desired = {CW: lo, CCW: hi, MAX_TORQUE: cap, TORQUE_LIMIT: cap,
-                       SHUTDOWN: values[SHUTDOWN] | REQUIRED_SHUTDOWN}
             if values[LOCK] and any(values[a] != desired[a] for a in (CW, CCW, MAX_TORQUE, SHUTDOWN)):
                 raise ProtectionError(f'ID {m.id}: EEPROM is locked and required settings differ')
             plan[m.id] = desired
@@ -255,8 +272,9 @@ class ProtectedArm:
                 if self.bus.read(m.id, TORQUE_ENABLE) != 0:
                     raise ProtectionError(f'ID {m.id}: torque changed during setup')
                 # Persist the smaller cap, then apply RAM cap; no torque enable writes.
-                for a in (MAX_TORQUE, TORQUE_LIMIT, SHUTDOWN, CW, CCW):
-                    self._set(m.id, a, plan[m.id][a])
+                if self.configure_protection:
+                    for a in (MAX_TORQUE, TORQUE_LIMIT, SHUTDOWN, CW, CCW):
+                        self._set(m.id, a, plan[m.id][a])
             self.verify(enabled=False)
             self.ready = True
         except Exception:

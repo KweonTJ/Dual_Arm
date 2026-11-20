@@ -1,11 +1,17 @@
 # AX-12A low-level control
 
+직접 슬라이더로 실기를 조작하려면 저장소 루트에서 `./manual_control.sh --connect`를
+실행합니다. 모터 절대각을 사용하는 전용 창이며 [MANUAL_CONTROL.md](MANUAL_CONTROL.md)에
+조작 방법을 정리했습니다. 초기 토크는 OFF입니다.
+
 현재 프로젝트의 U2D2 직접 연결용 실기 제어입니다. Python API와 ROS 어댑터가
 동일한 제어 코어를 사용합니다. 먼저 `./lowlevel.sh demo` 또는
 `./lowlevel.sh shell --mock`로 장치 없이 확인할 수 있습니다.
 
-실기는 `config/hardware.yaml`에 **포트·baudrate·토크 제한 비율·10개 모터의
-회전 방향**을 입력한 뒤 `./lowlevel.sh shell`로 실행합니다. 초기 토크는 OFF이며,
+실기는 `config/hardware.yaml`의 **포트·baudrate·10개 모터의
+회전 방향**을 실제 장치와 대조한 뒤 `./lowlevel.sh shell`로 실행합니다. 현재는
+확인된 FTDI by-id 포트(현재 `/dev/ttyUSB1`)와 검증된 1 Mbps·임시 방향 +1을 기입했습니다. 보호값 쓰기는
+`configure_protection: false`로 제외했습니다. 초기 토크는 OFF이며,
 `enable`은 현재 위치를 유지하도록 설정한 후 모터를 켭니다. `set`은 rad,
 `grip`은 두 턱 안쪽 간격 mm입니다. 클라이언트 갱신이 기본 1초 동안 끊기거나
 통신/보호값 오류가 발생하면 전체 OFF를 시도하고 오류를 유지합니다.
@@ -15,6 +21,10 @@ Linux Python implementation for the confirmed U2D2 / USB-TTL direct connection,
 DYNAMIXEL Protocol 1.0. No ROS is required for the API or terminal shell.
 
 The ten active joints use the current URDF limits and motor zero 180 degrees:
+
+2026-11-21: 실제 오른손목 ID 2와 왼손목 ID 7을 각각 약 2° 왕복 구동했습니다.
+시험 후 전체 토크 OFF와 보호 설정 유지도 확인했습니다. 실측값·로그·재실행 방법은
+[MOTION_TEST.md](MOTION_TEST.md)에 있습니다. 전체 팔의 영점·방향 보정은 남아 있습니다.
 
 | Role | Right ID | Left ID |
 |---|---:|---:|
@@ -34,15 +44,24 @@ python3 -m venv .venv-hardware
 ```
 
 Edit `config/hardware.yaml` with the actual serial port (prefer
-`/dev/serial/by-id/...`), baudrate, torque output percentage, and each motor's
-direction. These fields deliberately remain unset until measured. The transport
-is confirmed, but the port, baudrate and calibration are not inferred from it.
+`/dev/serial/by-id/...`), baudrate and each motor's
+direction. The file uses the detected FTDI adapter's stable `/dev/serial/by-id/`
+path (currently `/dev/ttyUSB1`). On 2026-11-21, all IDs 1..10 responded as
+AX-12A at 1000000 baud with torque OFF (140 reads, zero writes).
+All directions +1 and the physical neutral calibration remain unverified.
+Disconnect DYNAMIXEL Wizard or any other serial client before connecting.
+MuJoCo's N.m caps and PID gains are not converted into
+AX-12A settings. `configure_protection: false` retains the existing device
+CW/CCW limits, Max Torque, Torque Limit and Shutdown without writing them. An
+output percentage is required only when protection configuration is enabled.
 The gripper IDs are right 1 / left 6. Do not run this shell and another bus
 controller at the same time; the driver takes exclusive ownership of the port.
 
 `./hardware.sh plan` validates the configuration without opening a device.
-`./hardware.sh check` performs a read-only preflight. `./hardware.sh apply`
-applies the configured protection limits without enabling torque.
+`./hardware.sh check` performs a read-only preflight. With the current settings,
+`./hardware.sh apply` also only reads/verifies the existing device settings.
+It writes protection limits only for an explicit `configure_protection: true`
+configuration (legacy configuration files without the key retain that behavior).
 
 You can inspect model numbers, raw positions and existing limits before filling
 direction/torque calibration, using an explicit port and baudrate:
@@ -74,8 +93,8 @@ motor directions are emulator settings, not real robot calibration.
 ./lowlevel.sh shell --config src/dual_arm_hardware/config/hardware.yaml
 ```
 
-Opening the real shell checks all motors, applies narrower protection settings,
-and starts with torque OFF. It refuses already-enabled devices. Once the arm is
+Opening the real shell checks all motors, retains their existing protection
+settings and starts with torque OFF. It refuses already-enabled devices. Once the arm is
 supported and the configuration has been checked, enter commands:
 
 ```text
@@ -140,7 +159,7 @@ with arm:  # Starts polling, torque OFF.
 
 | Method | Behavior |
 |---|---|
-| `start()` | Verify/apply protection, start bus polling; no torque enable |
+| `start()` | Verify device settings, optionally configure protection, start polling; no torque enable |
 | `enable()` | Hold measured positions, then enable all ten motors |
 | `set_positions(mapping, require_all=False)` | Atomically validate targets, Sync Write, read every goal back |
 | `set_gripper(side, opening_mm)` | Convert 0–70 mm gap to the single gripper motor angle |

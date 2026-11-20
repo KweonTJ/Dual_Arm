@@ -132,5 +132,21 @@ class SDKProtocolTests(unittest.TestCase):
         self.assertTrue(all(memory[24]==0 for memory in self.responder.bus.memory.values()))
         self.assertEqual(self.responder.errors,[])
 
+    def test_existing_settings_mode_sends_no_protection_write_packets(self):
+        controller=DualArmLowLevel(self.bus,self.motors,ROOT/'src/dual_arm_description/config',
+                                  settings={'command_timeout_s':2.},configure_protection=False)
+        controller.start(background=False)
+        try:
+            self.assertFalse(any(p[4]==3 for p in self.responder.packets))
+            controller.enable()
+            controller.set_positions({'right_wrist_roll_joint':.1})
+        finally:
+            controller.close()
+        writes=[p[5] for p in self.responder.packets if p[4]==3]
+        self.assertTrue(writes)
+        self.assertLessEqual(set(writes),{24,30})
+        self.assertTrue(any(p[4]==131 for p in self.responder.packets))
+        self.assertEqual(self.responder.errors,[])
+
 
 if __name__=='__main__':unittest.main()

@@ -1,6 +1,6 @@
 # AX-12A 양팔 로봇 — URDF와 디지털 트윈 시뮬레이션
 
-ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양팔 로봇의 **공식 FP04 부품 도면 치수를 반영한 사진 기반 모델**입니다. 한쪽 팔은 팔 모터 4개와 중앙 정렬 그리퍼 모터 1개로 구성하며, 2026-11-21 사진에 맞춰 회색 F51/F52 몸체 양옆에 연결했습니다. 아래 검정 받침대는 모델에서 제외했습니다. `display.sh`는 프리뷰 전용입니다. 실제 AX-12A 보호 설정/구동은 별도 [dual_arm_hardware](src/dual_arm_hardware/README.md)와 `hardware.sh`에서 제공합니다. 현재 실기 연결 정보가 미입력되어 실제 장치에는 적용하지 않았습니다.
+ROBOTIS BIOLOID Premium에서 분리한 모터와 부속품으로 구성한 양팔 로봇의 **공식 FP04 부품 도면 치수를 반영한 사진 기반 모델**입니다. 한쪽 팔은 팔 모터 4개와 중앙 정렬 그리퍼 모터 1개로 구성하며, 2026-11-21 사진에 맞춰 회색 F51/F52 몸체 양옆에 연결했습니다. 아래 검정 받침대는 모델에서 제외했습니다. `display.sh`는 프리뷰 전용입니다. 실제 AX-12A 보호 설정/구동은 별도 [dual_arm_hardware](src/dual_arm_hardware/README.md)와 `hardware.sh`에서 제공합니다. 현재 실기 FTDI 포트와 1 Mbps에서 10개 AX-12A 응답을 확인했습니다. 양손목 소각도 구동을 확인했으며 전체 팔의 물리 영점·방향 보정은 남아 있습니다.
 
 ![URDF에서 렌더링한 모델](preview/01_양팔_전체.png)
 
@@ -171,7 +171,7 @@ ROS 관례로 +X는 앞, +Y는 로봇의 왼쪽, +Z는 위입니다. `left`와 `
 
 출력 노드는 이름 중복·누락·알 수 없는 관절·NaN/Inf가 있는 입력을 한 묶음 전체 거부합니다. 정상 목표 입력이 0.5초 끊기면 마지막 표시 자세를 유지하며, 이미 오래된 목표는 뒤늦게 적용하지 않습니다. velocity와 effort 피드백은 만들어 내지 않습니다. 이 경로는 **합성 프리뷰 전용**이며 실제 모터의 측정 `/joint_states`를 이 제한기에 넣으면 안 됩니다. 실기/물리 시뮬레이터를 붙일 때는 프리뷰 발행기를 끄고 실제 상태 발행기를 사용해야 합니다.
 
-`display.sh`는 RViz 기구학 프리뷰입니다. 물리 엔진, 중력·접촉 토크 계산, 충돌 회피, 가속도/jerk 제한은 없습니다. 별도 실기 구동기 `dual_arm_hardware`는 CW/CCW Angle Limit, Max Torque/Torque Limit, 과열·과부하 Shutdown을 적용하고 재조회한 뒤 활성화를 허용합니다. 실제 연결 정보와 출력 상한이 설정되지 않아 아직 모터에 적용하지 않았습니다. [실기 설정 및 실행 안내](src/dual_arm_hardware/README.md)를 확인하세요. Torque Limit은 N·m가 아닌 출력 비율이고 전원을 켜면 Max Torque 값으로 초기화됩니다. [ROBOTIS AX-12A 공식 제어표](https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#control-table)
+`display.sh`는 RViz 기구학 프리뷰입니다. 물리 엔진, 중력·접촉 토크 계산, 충돌 회피, 가속도/jerk 제한은 없습니다. 별도 실기 구동기 `dual_arm_hardware`는 현재 `configure_protection: false`로 모터에 저장된 CW/CCW Angle Limit, Max Torque/Torque Limit, Shutdown을 읽어 사용하며 추가 보호값을 쓰지 않습니다. 실제 FTDI 포트와 1 Mbps에서 10개 모터 설정을 읽어 확인했습니다(읽기 140회·쓰기 0회). [실기 설정 및 실행 안내](src/dual_arm_hardware/README.md)를 확인하세요. Torque Limit은 N·m가 아닌 출력 비율입니다. [ROBOTIS AX-12A 공식 제어표](https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#control-table)
 
 검증 명령:
 
@@ -230,11 +230,15 @@ STL 형상 재생성은 `python3 src/dual_arm_description/scripts/generate_meshe
 ./simulation.sh --twin real              # U2D2 실기 연동 화면; 연결/제어 시작 버튼으로 활성화
 ```
 
-실기 설정의 포트·baudrate·출력 비율·회전 방향은 아직 미입력입니다. 현재 확인한 것은 MOCK 연동이며 실제 모터 동작 시험은 수행하지 않았습니다. 최신 시연 화면은 [08_실기_연동_모의시연.png](preview/08_실기_연동_모의시연.png)입니다.
+실기 설정에는 확인된 FTDI by-id 포트(현재 `/dev/ttyUSB1`)와 검증된 1 Mbps·임시 방향 +1을 기입했습니다. ID·영점·목표각 범위는 시뮬레이터와 공유하며 물리 영점과 장착 방향은 실측 보정 전입니다. `configure_protection: false`로 모터의 보호 설정 쓰기를 제외했습니다. MOCK 연동, 실제 10개 AX-12A 읽기 통신과 양손목 약 2° 왕복 구동을 확인했습니다. [실기 구동 시험 결과](src/dual_arm_hardware/MOTION_TEST.md)에 실측값과 로그를 정리했습니다. 최신 시연 화면은 [08_실기_연동_모의시연.png](preview/08_실기_연동_모의시연.png)입니다.
 
 ## 실제 로봇 저수준 제어
 
-U2D2/USB-TTL 직접 연결용 Python API와 터미널 제어창을 추가했습니다. 실행 방법과 API는 [LOWLEVEL.md](src/dual_arm_hardware/LOWLEVEL.md)에 있습니다. 위치(rad), 중앙 그리퍼 벌림(mm), 현재 위치 유지, 토크 ON/OFF, 오류 정지와 상태 읽기를 제공합니다. 모터 영점 180°, 현재 10개 ID·관절 제한을 공유하고, 명령 미갱신/통신 오류는 전체 OFF 시도 후 오류로 유지합니다. 실기 연결 설정과 회전 방향은 아직 미입력입니다.
+실기 모터를 직접 조작하려면 `./manual_control.sh --connect`로 전용 창을 엽니다.
+10개 모터의 절대각과 상태를 표시하며 초기 토크는 OFF입니다.
+[조작 방법](src/dual_arm_hardware/MANUAL_CONTROL.md)을 참고하세요.
+
+U2D2/USB-TTL 직접 연결용 Python API와 터미널 제어창을 추가했습니다. 실행 방법과 API는 [LOWLEVEL.md](src/dual_arm_hardware/LOWLEVEL.md)에 있습니다. 위치(rad), 중앙 그리퍼 벌림(mm), 현재 위치 유지, 토크 ON/OFF, 오류 정지와 상태 읽기를 제공합니다. 모터 영점 180°, 현재 10개 ID·관절 제한을 공유하고, 명령 미갱신/통신 오류는 전체 OFF 시도 후 오류로 유지합니다. 실기 연결과 10개 모터 응답은 확인했으며 물리 영점·회전 방향은 실측 보정 전입니다.
 
 ```bash
 ./lowlevel.sh demo          # 장치 없이 SDK 제어 흐름과 watchdog 시연
