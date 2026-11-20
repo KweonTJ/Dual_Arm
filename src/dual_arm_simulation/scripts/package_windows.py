@@ -17,9 +17,13 @@ def main():
     paths.append(ROOT / 'src/dual_arm_description/scripts/gripper_kinematics.py')
     for script in ('import_centered_gripper.py','generate_meshes.py','mesh_geometry.py'):
         paths.append(ROOT/'src/dual_arm_description/scripts'/script)
-    for script in ('simulation_app.py', 'simulation_model.py', 'launch_desktop.py',
+    for script in ('simulation_app.py', 'simulation_model.py', 'twin_bridge.py', 'launch_desktop.py',
                    'windows_bootstrap.py', 'test_simulation.py', 'test_portable.py'):
         paths.append(ROOT / 'src/dual_arm_simulation/scripts' / script)
+    for script in ('ax12_guard.py','hardware_telemetry.py','lowlevel_control.py','mock_bus.py','lowlevel_cli.py'):
+        paths.append(ROOT/'src/dual_arm_hardware/scripts'/script)
+    for name in ('hardware.yaml','lowlevel.yaml'):
+        paths.append(ROOT/'src/dual_arm_hardware/config'/name)
     output = ROOT / 'dist/Dual_Arm_Windows.zip'
     output.parent.mkdir(parents=True, exist_ok=True)
     checksums = {}

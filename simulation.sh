@@ -5,6 +5,12 @@ source /opt/ros/humble/setup.bash
 source install/local_setup.bash
 # MuJoCo is installed in the user's Python site in this workspace environment.
 unset PYTHONNOUSERSITE
+# Real twin mode uses the dedicated SDK/pyserial installation, while MuJoCo/Qt
+# continue to run in the existing desktop runtime.
+if [[ " $* " == *" --twin real "* && -x "$PWD/.venv-hardware/bin/python" ]]; then
+  hardware_site="$("$PWD/.venv-hardware/bin/python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
+  export PYTHONPATH="$hardware_site${PYTHONPATH:+:$PYTHONPATH}"
+fi
 export MUJOCO_GL="${MUJOCO_GL:-egl}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$PWD/log/simulation_ros}"
 simulation_dir="$PWD/log/simulation"

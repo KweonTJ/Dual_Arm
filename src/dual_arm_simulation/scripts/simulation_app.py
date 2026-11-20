@@ -33,6 +33,8 @@ class Viewport(QtWidgets.QLabel):
         self.options = mujoco.MjvOption()
         self.options.geomgroup[0] = 0  # Physics collision proxies hidden by default.
         self.previous = None
+        self.measured = None
+        self.show_measured = False
         self.reset_camera()
 
     def reset_camera(self, front=False):
@@ -42,7 +44,11 @@ class Viewport(QtWidgets.QLabel):
         self.camera.elevation = -12 if front else -20
 
     def draw(self):
-        self.renderer.update_scene(self.sim.data, camera=self.camera, scene_option=self.options)
+        if self.show_measured and self.measured is None:
+            self.clear();self.setText('실측 데이터 없음 / 연결 상태를 확인하세요')
+            return
+        self.renderer.update_scene(self.measured if self.show_measured else self.sim.data,
+                                   camera=self.camera, scene_option=self.options)
         rgb = self.renderer.render()
         img = QtGui.QImage(rgb.data, rgb.shape[1], rgb.shape[0], rgb.strides[0], QtGui.QImage.Format_RGB888).copy()
         self.setPixmap(QtGui.QPixmap.fromImage(img).scaled(self.size(), QtCore.Qt.KeepAspectRatio,
@@ -70,9 +76,11 @@ class Viewport(QtWidgets.QLabel):
 
 
 class SimulationWindow(QtWidgets.QMainWindow):
-    def __init__(self, simulation, log_dir):
+    def __init__(self, simulation, log_dir, twin=None, twin_demo=False):
         super().__init__()
         self.sim, self.log_dir = simulation, Path(log_dir)
+        self.twin,self.twin_demo=twin,twin_demo
+        self._seed_token=0;self._demo_stage=0;self._twin_snapshot=None
         self.csv_file = None
         self.csv_writer = None
         self.last_csv_time = -1
@@ -88,10 +96,10 @@ class SimulationWindow(QtWidgets.QMainWindow):
         title = QtWidgets.QLabel('DUAL ARM  /  MuJoCo 디지털 트윈')
         title.setStyleSheet('font-size: 23px; font-weight: bold; padding: 5px;')
         layout.addWidget(title)
-        subtitle = QtWidgets.QLabel(
+        self.subtitle = QtWidgets.QLabel(
             f'MuJoCo {mujoco.__version__} · 중력/관성/접촉 물리 · 관절별 PID · 토크 제한 · 실기 연결 없음')
-        subtitle.setStyleSheet('color: #256e96; padding-left: 5px;')
-        layout.addWidget(subtitle)
+        self.subtitle.setStyleSheet('color: #256e96; padding-left: 5px;')
+        layout.addWidget(self.subtitle)
         controls = QtWidgets.QHBoxLayout()
         layout.addLayout(controls)
         self.pause_button = QtWidgets.QPushButton('일시정지')
@@ -103,6 +111,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.torque_button.setChecked(True)
         self.torque_button.toggled.connect(self.torque)
         controls.addWidget(self.torque_button)
+        self.pose_buttons=[]
         for name, callback in (('초기화', self.reset), ('영점 목표', self.zero_targets),
                                ('어깨 90°', self.shoulder_targets), ('팔 굽히기', self.bend_targets),
                                ('정면', lambda: self.viewport.reset_camera(True)),
@@ -110,6 +119,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
             button = QtWidgets.QPushButton(name)
             button.clicked.connect(callback)
             controls.addWidget(button)
+            self.pose_buttons.append(button)
         collision_button = QtWidgets.QPushButton('충돌 형상')
         collision_button.setCheckable(True)
         collision_button.toggled.connect(lambda on: self.toggle_collisions(on))
@@ -119,6 +129,25 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.record_button.toggled.connect(self.record)
         controls.addWidget(self.record_button)
         controls.addStretch()
+        if self.twin:
+            row=QtWidgets.QHBoxLayout();layout.addLayout(row)
+            self.twin_connect=QtWidgets.QPushButton('연결')
+            self.twin_enable=QtWidgets.QPushButton('실기 제어 시작')
+            self.twin_disable=QtWidgets.QPushButton('실기 제어 중지 / 토크 OFF')
+            self.twin_stop=QtWidgets.QPushButton('긴급 정지')
+            self.measured_view=QtWidgets.QPushButton('실측 자세 보기')
+            self.measured_view.setCheckable(True)
+            for button,operation in ((self.twin_connect,'connect'),(self.twin_enable,'enable'),
+                                     (self.twin_disable,'disable'),(self.twin_stop,'estop')):
+                button.clicked.connect(lambda _=False,op=operation:self.twin_action(op))
+                row.addWidget(button)
+            self.measured_view.toggled.connect(lambda on:setattr(self.viewport,'show_measured',on))
+            row.addWidget(self.measured_view)
+            self.twin_status=QtWidgets.QLabel();self.twin_status.setWordWrap(True)
+            row.addWidget(self.twin_status,1)
+            mode='MOCK 연동 · 실제 모터 연결 없음' if self.twin.mode=='mock' else 'U2D2 실기 연동'
+            self.subtitle.setText(f'MuJoCo {mujoco.__version__} · {mode} · 연결 후 현재 자세에서 제어 시작')
+            self.resize(1780,950)
         content = QtWidgets.QHBoxLayout()
         layout.addLayout(content, 1)
         self.viewport = Viewport(simulation)
@@ -128,11 +157,17 @@ class SimulationWindow(QtWidgets.QMainWindow):
         panel_layout = QtWidgets.QVBoxLayout(panel)
         content.addWidget(panel)
         self.spins, self.sliders, self.cells = [], [], []
+        self.measured_cells=[]
         for side, caption in (('left', '왼팔 · 정면에서 오른쪽'), ('right', '오른팔 · 정면에서 왼쪽')):
             group = QtWidgets.QGroupBox(caption)
             grid = QtWidgets.QGridLayout(group)
-            for col, text in enumerate(('관절', '목표 조작', '목표 °', '현재 °', '오차 °', '속도 °/s', '토크 / 상한 N·m', '상태')):
-                grid.addWidget(QtWidgets.QLabel(text), 0, col)
+            headers=['관절','목표 조작','목표 °','가상 °','오차 °','가상 속도','가상 토크 N·m','상태']
+            if self.twin:headers+=['실측 °' if self.twin.mode=='real' else '모의 °','차이 °']
+            for col, text in enumerate(headers):
+                label=QtWidgets.QLabel(text)
+                if self.twin and col==9:label.setToolTip('MuJoCo 현재각 − 실측각')
+                if col==6:label.setToolTip('가상 모터 토크 / 시뮬레이션 출력 상한, N·m')
+                grid.addWidget(label, 0, col)
             row = 1
             for index, name in enumerate(self.sim.names):
                 if not name.startswith(side + '_'):
@@ -164,6 +199,12 @@ class SimulationWindow(QtWidgets.QMainWindow):
                     cell.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
                     grid.addWidget(cell, row, col)
                 self.cells.append(cells)
+                if self.twin:
+                    measured=[QtWidgets.QLabel('--'),QtWidgets.QLabel('--')]
+                    for col,cell in enumerate(measured,8):
+                        cell.setMinimumWidth(42);cell.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
+                        grid.addWidget(cell,row,col)
+                    self.measured_cells.append(measured)
                 row += 1
             panel_layout.addWidget(group)
         self.status = QtWidgets.QLabel()
@@ -173,10 +214,13 @@ class SimulationWindow(QtWidgets.QMainWindow):
             '중력 보상 토크도 같은 상한 안에서 출력됩니다.\n'
             '도달: 오차 0.5° 이내 / 속도 1°/s 이내\n'
             '영점: 실제 모터 180° ↔ 시뮬레이션 관절 0°\n'
-            '전압·온도·전류는 현재 모델에서 계산하지 않습니다.\n\n'
+            '가상 모델은 전압·온도·전류를 계산하지 않습니다.\n\n'
             '토크 상한과 PID는 시뮬레이션용 설정입니다.\n'
             '실기 Torque Limit 설정은 변경하지 않습니다.\n'
-            '질량·관성·서보 특성은 실측 보정 전입니다.')
+            '질량·관성·서보 특성은 실측 보정 전입니다.'+
+            ('\n\n실측 자세 보기: 모터에서 읽은 각도로 표시\n'
+             '차이: 가상 현재각 − 실측각\n'
+             '같은 목표라도 하중·마찰에 따라 오차가 생깁니다.' if self.twin else ''))
         explanation.setStyleSheet('color: #52667d; padding: 10px;')
         panel_layout.addWidget(explanation)
         panel_layout.addStretch()
@@ -188,7 +232,70 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.tick)
         self.timer.start(33)
         self.sync_targets()
+        if self.twin:
+            self.twin_tick()
         self.refresh()
+
+    def twin_action(self,operation):
+        try:self.twin.request(operation)
+        except RuntimeError as exc:self.statusBar().showMessage(str(exc))
+
+    def twin_tick(self):
+        self.twin.pulse();state=self.twin.snapshot();self._twin_snapshot=state
+        phase=state['phase']
+        if phase=='AWAITING_SEED' and state['seed_token']!=self._seed_token:
+            try:
+                feedback=state['feedback']
+                # The backend's fresh measured pose, including passive linkage TF.
+                if not feedback.get('sample_valid'):return
+                self.sim.align_to_measured(feedback['joint_positions_rad'])
+                self.sim.set_enabled(True)
+                self.torque_button.blockSignals(True);self.torque_button.setChecked(True)
+                self.torque_button.setText('가상 모터 ON');self.torque_button.blockSignals(False)
+                self.sync_targets();self.twin.acknowledge_seed(state['seed_token'])
+                self._seed_token=state['seed_token']
+            except (ValueError,RuntimeError) as exc:
+                self.statusBar().showMessage(str(exc));self.twin_action('estop')
+        elif phase=='ACTIVE' and not self.sim.paused and not self.sim.fault:
+            self.twin.submit_targets({n:float(q) for n,q in zip(self.sim.names,self.sim.targets)})
+        if self.sim.fault and phase in ('ACTIVE','AWAITING_SEED'):
+            self.twin_action('estop')
+        if self.twin_demo:
+            if self._demo_stage==0 and phase=='DISCONNECTED':
+                self.twin_action('connect');self._demo_stage=1
+            elif self._demo_stage==1 and phase=='TORQUE_OFF':
+                self.twin_action('enable');self._demo_stage=2
+            elif self._demo_stage==2 and phase=='ACTIVE':
+                values=[5 if 'shoulder' in n else 10 if 'elbow' in n else
+                        (15 if n.startswith('right') else -15) if 'wrist' in n else 25 for n in self.sim.names]
+                self.sim.set_targets(np.radians(values));self.sync_targets()
+                self.measured_view.setChecked(True);self._demo_stage=3
+        feedback=state['feedback'];valid=feedback.get('sample_valid',False)
+        self.viewport.measured=self.sim.measured_data(feedback['joint_positions_rad']) if valid else None
+        for i,name in enumerate(self.sim.names):
+            cells=self.measured_cells[i]
+            sample=feedback.get('samples',{}).get(name)
+            if valid and sample:
+                actual=sample['position_deg'];virtual=np.degrees(self.sim.data.qpos[self.sim.qindices[i]])
+                cells[0].setText(f'{actual:.1f}');cells[1].setText(f'{virtual-actual:+.2f}')
+            else:
+                for cell in cells:cell.setText('--')
+        label={'DISCONNECTED':'미연결','CONNECTING':'연결 중','TORQUE_OFF':'연결됨 · 토크 OFF',
+               'ENABLING':'현재 자세 확인 중','AWAITING_SEED':'초기 자세 동기화 중','ACTIVE':'동기 제어 중',
+               'HOLDING':'현재 위치 유지 요청 중','DISABLING':'토크 OFF 요청 중','STOPPING':'정지 요청 중',
+               'FAULT':'오류 · 재시작 필요','CLOSED':'연결 종료'}[phase]
+        prefix='MOCK' if self.twin.mode=='mock' else '실기'
+        self.twin_status.setText(f'{prefix}: {label}'+('\n'+state['error'] if state['error'] else '')+
+                                ('\nOFF 미확인: '+'; '.join(state['torque_off_unconfirmed']) if state['torque_off_unconfirmed'] else ''))
+        self.twin_connect.setEnabled(phase=='DISCONNECTED');self.twin_enable.setEnabled(phase=='TORQUE_OFF')
+        self.twin_disable.setEnabled(phase in ('ACTIVE','AWAITING_SEED','HOLDING'))
+        self.twin_stop.setEnabled(phase in ('TORQUE_OFF','ACTIVE','AWAITING_SEED','HOLDING','ENABLING'))
+        busy=phase not in ('DISCONNECTED','TORQUE_OFF','ACTIVE','FAULT')
+        editable=not busy and not (phase=='ACTIVE' and self.sim.paused)
+        for widget in self.spins+self.sliders:widget.setEnabled(editable)
+        self.pose_buttons[0].setEnabled(phase in ('DISCONNECTED','TORQUE_OFF','FAULT'))
+        for widget in self.pose_buttons[1:4]:widget.setEnabled(editable)
+        self.torque_button.setEnabled(phase not in ('ACTIVE','AWAITING_SEED','HOLDING','ENABLING'))
 
     def target_changed(self, index, degrees):
         values = self.sim.targets.copy()
@@ -227,6 +334,8 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.sim.paused = on
         self.accumulator = 0.0
         self.pause_button.setText('계속 실행' if on else '일시정지')
+        if on and self.twin and self.twin.snapshot()['phase']=='ACTIVE':
+            self.twin_action('hold')
 
     def torque(self, on):
         try:
@@ -240,6 +349,8 @@ class SimulationWindow(QtWidgets.QMainWindow):
         self.sync_targets()
 
     def reset(self):
+        if self.twin and self.twin.snapshot()['phase'] not in ('DISCONNECTED','TORQUE_OFF','FAULT'):
+            self.statusBar().showMessage('실기 제어를 중지한 뒤 초기화하세요');return
         # A reset starts a new timeline; finish an active CSV instead of mixing times.
         self.record_button.setChecked(False)
         self.sim.reset()
@@ -263,7 +374,8 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 self.csv_writer = csv.writer(self.csv_file)
                 self.csv_writer.writerow(('sim_time_s', 'joint', 'motor_id', 'target_deg', 'position_deg', 'velocity_deg_s',
                                           'actuator_torque_nm', 'torque_cap_nm', 'saturated', 'contacts', 'motor_enabled',
-                                          'error_deg', 'bias_feedforward_nm', 'integral_torque_nm'))
+                                          'error_deg', 'bias_feedforward_nm', 'integral_torque_nm')+
+                                         (('twin_mode','twin_phase','measured_deg','measured_sample_valid') if self.twin else ()))
                 self.last_csv_time = -1
                 self.record_button.setText('기록 중')
                 self.statusBar().showMessage(str(path))
@@ -287,6 +399,7 @@ class SimulationWindow(QtWidgets.QMainWindow):
                 self.torque_button.setChecked(False)
         realtime = (self.sim.data.time - self.previous_sim) / max(elapsed, 1e-9)
         self.previous_sim = float(self.sim.data.time)
+        if self.twin:self.twin_tick()
         self.refresh(realtime)
 
     def refresh(self, realtime=0):
@@ -309,10 +422,16 @@ class SimulationWindow(QtWidgets.QMainWindow):
                             f'실시간 비율 {realtime:.2f}×  |  접촉점 {sample["contacts"]}개')
         if self.csv_writer and sample['time'] - self.last_csv_time >= .1:
             for i, name in enumerate(self.sim.names):
+                extra=()
+                if self.twin:
+                    state=self._twin_snapshot or self.twin.snapshot()
+                    feedback=state['feedback'];actual=feedback.get('samples',{}).get(name,{})
+                    extra=(self.twin.mode,state['phase'],actual.get('position_deg','') if feedback.get('sample_valid') else '',
+                           feedback.get('sample_valid',False))
                 self.csv_writer.writerow((sample['time'], name, self.sim.motor_ids[i], np.degrees(sample['target'][i]),
                     np.degrees(sample['position'][i]), np.degrees(sample['velocity'][i]), sample['effort'][i],
                     self.sim.caps[i], bool(sample['saturated'][i]), sample['contacts'], self.sim.enabled,
-                    np.degrees(sample['error'][i]), sample['feedforward'][i], sample['integral_torque'][i]))
+                    np.degrees(sample['error'][i]), sample['feedforward'][i], sample['integral_torque'][i])+extra)
             self.csv_file.flush()
             self.last_csv_time = sample['time']
         self.viewport.draw()
@@ -320,6 +439,9 @@ class SimulationWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         self.timer.stop()
         self.record(False)
+        if self.twin:
+            errors=self.twin.close()
+            if errors:print('Torque OFF unconfirmed: '+'; '.join(errors),file=sys.stderr)
         self.viewport.renderer.close()
         event.accept()
 
@@ -335,7 +457,13 @@ def main():
     parser.add_argument('--pose', choices=('neutral', 'shoulders90'), default='neutral',
                         help='initial target pose; the robot moves there through physics')
     parser.add_argument('--screenshot', type=Path, help='save the complete window; with --headless use offscreen Qt')
+    parser.add_argument('--twin',choices=('off','mock','real'),default='off',help='Target/feedback link; defaults to no hardware')
+    parser.add_argument('--hardware-config',type=Path)
+    parser.add_argument('--loop-config',type=Path)
+    parser.add_argument('--twin-demo',action='store_true',help='Automatically demonstrate coupling, MOCK only')
     args = parser.parse_args()
+    if args.twin_demo and args.twin!='mock':parser.error('--twin-demo requires --twin mock')
+    if args.headless and args.twin=='real':parser.error('Real hardware control requires the interactive UI')
     if not np.isfinite(args.seconds) or args.seconds <= 0:
         parser.error('--seconds must be finite and positive')
     scene, manifest = build_scene(args.urdf, args.description_dir, args.config, args.output_dir)
@@ -346,7 +474,7 @@ def main():
             if 'shoulder_pitch' in name:
                 target[i] = np.pi / 2
         sim.set_targets(target)
-    if args.headless:
+    if args.headless and args.twin=='off':
         sim.step(round(args.seconds / sim.model.opt.timestep))
         sample = sim.snapshot()
         print(json.dumps({'sim_time_s': sim.data.time, 'joints': len(sim.names), 'contacts': sim.data.ncon,
@@ -357,9 +485,19 @@ def main():
         if not args.screenshot:
             return
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+    elif args.headless:
+        os.environ['QT_QPA_PLATFORM']='offscreen'
     app = QtWidgets.QApplication(sys.argv[:1])
     app.setFont(QtGui.QFont('Malgun Gothic' if sys.platform == 'win32' else 'Noto Sans CJK KR', 10))
-    window = SimulationWindow(sim, args.output_dir / 'records')
+    twin=None
+    if args.twin!='off':
+        from twin_bridge import TwinBridge,controller_factory
+        root=args.description_dir.resolve().parents[1]
+        hardware=args.hardware_config or root/'src/dual_arm_hardware/config/hardware.yaml'
+        loop=args.loop_config or root/'src/dual_arm_hardware/config/lowlevel.yaml'
+        twin=TwinBridge(sim.names,sim.motor_ids,lambda:controller_factory(args.twin,args.description_dir,hardware,loop),
+                        args.twin,args.output_dir/'records')
+    window = SimulationWindow(sim, args.output_dir / 'records',twin,args.twin_demo)
     window.show()
     if args.screenshot:
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
@@ -370,7 +508,9 @@ def main():
             if args.headless:
                 window.close()
 
-        QtCore.QTimer.singleShot(800, capture)
+        QtCore.QTimer.singleShot(round(args.seconds*1000) if args.twin!='off' and args.headless else 800, capture)
+    elif args.headless and args.twin!='off':
+        QtCore.QTimer.singleShot(round(args.seconds*1000),window.close)
     sys.exit(app.exec_())
 
 

@@ -200,6 +200,30 @@ class Simulation:
         self.integral_torque[np.abs(bounded - self.targets) > 1e-12] = 0
         self.targets[:] = bounded
 
+    def measured_data(self,positions):
+        """Separate kinematic display data; never overwrite the physics state."""
+        if not set(self.names)<=set(positions):raise ValueError('Missing measured motor joints')
+        data=mujoco.MjData(self.model)
+        data.qpos[:]=self.data.qpos
+        for name,value in positions.items():
+            joint=mujoco.mj_name2id(self.model,mujoco.mjtObj.mjOBJ_JOINT,name)
+            if joint<0 or not math.isfinite(value):raise ValueError('Invalid measured joint: '+name)
+            data.qpos[self.model.jnt_qposadr[joint]]=value
+        mujoco.mj_forward(self.model,data)
+        return data
+
+    def align_to_measured(self,positions):
+        """One-time alignment on explicit hardware enable/hold, not per-frame feedback."""
+        values=np.array([positions[n] for n in self.names])
+        if not np.isfinite(values).all() or np.any(values<self.lower-1e-6) or np.any(values>self.upper+1e-6):
+            raise ValueError('Measured pose is outside the simulation joint limits')
+        data=self.measured_data(positions)
+        self.data.qpos[:]=data.qpos
+        self.data.qvel[:]=0;self.data.ctrl[:]=0
+        self.integral_torque[:]=0;self.feedforward[:]=0
+        self.set_targets(values)
+        mujoco.mj_forward(self.model,self.data)
+
     def set_enabled(self, enabled):
         if enabled and self.fault:
             raise RuntimeError('Reset required after a simulation fault')
